@@ -36,10 +36,10 @@ Change the port if 8000 is busy:
 
 ```bash
 python app.py --port 8080
-# http://127.0.0.1:8080
+
 ```
 
-Press Ctrl+C to stop the server. By default it binds only to `127.0.0.1` (localhost), so it is not reachable from other machines. Use `--host 0.0.0.0` only if you need LAN access.
+
 
 ### Local API
 
