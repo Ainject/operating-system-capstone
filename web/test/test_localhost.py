@@ -71,6 +71,11 @@ class TestLocalhost(unittest.TestCase):
                                 {"algorithm": "sjf", "replacement": "lru", "frames": 4})
         self.assertEqual(status, 200)
         self.assertEqual(data["total_faults"] + data["total_hits"], 26)
+        self.assertEqual(len(data["memory_trace"]), 26)
+        self.assertEqual(data["memory_trace"][0]["time"], 0)
+        self.assertEqual(data["memory_trace"][0]["frames"][0], {"pid": "P1", "page": 1})
+        self.assertEqual(sum(step["hit"] for step in data["memory_trace"]), data["total_hits"])
+        self.assertEqual(sum(not step["hit"] for step in data["memory_trace"]), data["total_faults"])
 
 
 if __name__ == "__main__":

@@ -45,6 +45,7 @@ class CombinedResult:
     per_process_faults: Dict[str, int] = field(default_factory=dict)
     per_process_hits: Dict[str, int] = field(default_factory=dict)
     memory_log: List[str] = field(default_factory=list)
+    memory_trace: List[dict] = field(default_factory=list)
 
     def summary(self) -> str:
         total = self.total_faults + self.total_hits
@@ -91,6 +92,7 @@ class CombinedSimulator:
         # For non-preemptive algorithms this is completion order; for RR/SRTF
         # it follows the time slices, which is the realistic interleaving.
         seen: Dict[str, int] = {p.pid: 0 for p in processes}
+        memory_trace: List[dict] = []
         for segment in schedule.gantt:
             if segment.pid == "IDLE":
                 continue
@@ -98,19 +100,33 @@ class CombinedSimulator:
             proc = next(p for p in processes if p.pid == pid)
             # One page reference per unit of CPU time in this segment,
             # cycling through the process's reference string.
-            for _ in range(segment.end - segment.start):
+            for offset in range(segment.end - segment.start):
                 if not proc.page_references:
                     break
                 idx = seen[pid] % len(proc.page_references)
                 page = proc.page_references[idx]
                 seen[pid] += 1
                 hit, evicted = memory.access(pid, page)
+                memory_trace.append({
+                    "time": segment.start + offset,
+                    "pid": pid,
+                    "page": page,
+                    "hit": hit,
+                    "evicted": (
+                        {"pid": evicted[0], "page": evicted[1]}
+                        if evicted else None
+                    ),
+                    "frames": [
+                        {"pid": frame[0], "page": frame[1]} if frame else None
+                        for frame in memory.frames
+                    ],
+                })
                 if hit:
                     per_hits[pid] += 1
                 else:
                     per_faults[pid] += 1
                     evict_note = f", evicted {evicted[0]} page {evicted[1]}" if evicted else ""
-                    log.append(f"t={segment.start}: {pid} page {page} -> FAULT{evict_note}")
+                    log.append(f"t={segment.start + offset}: {pid} page {page} -> FAULT{evict_note}")
             # Free frames when a process finishes, like a real OS would
             # on exit - only if this was its last segment.
             if any(p.pid == pid and p.completion_time == segment.end for p in schedule.processes):
@@ -127,6 +143,7 @@ class CombinedSimulator:
             per_process_faults=per_faults,
             per_process_hits=per_hits,
             memory_log=log,
+            memory_trace=memory_trace,
         )
 
 

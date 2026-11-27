@@ -198,6 +198,7 @@ class Handler(SimpleHTTPRequestHandler):
                     "per_process_faults": result.per_process_faults,
                     "per_process_hits": result.per_process_hits,
                     "memory_log": result.memory_log,
+                    "memory_trace": result.memory_trace,
                 })
             return self._send_json({"error": f"Unknown API path: {parsed.path}"}, status=404)
         except (ValueError, KeyError, TypeError) as e:

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light" data-color="teal">
+<html lang="en" data-theme="dark" data-color="teal">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OS Simulator — Scheduling &amp; Memory</title>
 <style>
   :root{
-    --bg:#f4f6fb; --surface:#ffffff; --surface-2:#f8fafc; --text:#0f172a; --muted:#64748b;
-    --border:#e2e8f0; --primary:#4f46e5; --primary-2:#7c3aed; --accent:#06b6d4;
+    --bg:#e8eff3; --surface:#f2f6f7; --surface-2:#e5edf1; --text:#102331; --muted:#5f7380;
+    --border:#cfdae0; --primary:#4f46e5; --primary-2:#7c3aed; --accent:#06b6d4;
     --green:#059669; --green-bg:#ecfdf5; --red:#dc2626; --red-bg:#fef2f2;
     --amber:#d97706; --amber-bg:#fffbeb; --shadow:0 10px 30px rgba(15,23,42,.08);
     --shadow-sm:0 4px 14px rgba(15,23,42,.06); --radius:18px;
@@ -22,6 +22,7 @@
   [data-theme="dark"]{
     --bg:#0b1220; --surface:#111c33; --surface-2:#16233f; --text:#f1f5f9; --muted:#94a3b8;
     --border:#24344f; --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-sm:0 4px 14px rgba(0,0,0,.3);
+    --green:#34d399; --red:#f87171; --amber:#fbbf24;
     --green-bg:#064e3b; --red-bg:#450a0a; --amber-bg:#451a03;
   }
   *{box-sizing:border-box}
@@ -171,10 +172,70 @@
   .player{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
   .player input[type=range]{flex:1;min-width:140px;accent-color:var(--primary)}
   .player .step-label{font-weight:700;font-size:14px;min-width:110px}
+  .workflow{border:1px solid var(--border);border-radius:14px;background:var(--surface-2);padding:14px;margin-top:10px}
+  .workflow h4{margin:0 0 8px;font-size:14px}
+  .workflow p{margin:5px 0;color:var(--muted);font-size:13px}
+  .workflow-state{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+  .workflow-state span{border:1px solid var(--border);background:var(--surface);padding:5px 9px;border-radius:999px;font-size:12px}
+  .workflow-state .current{border-color:var(--primary);color:var(--primary);font-weight:750}
+  .workflow-state .done{border-color:var(--green);color:var(--green)}
+  .buddy-note{display:flex;align-items:flex-start;gap:9px;margin:11px 0 0;padding:9px 11px;border:1px solid color-mix(in srgb,var(--accent) 45%,var(--border));border-radius:12px;background:color-mix(in srgb,var(--accent) 9%,var(--surface));font-size:13px}
+  .buddy-note p{margin:0;color:var(--text)}
+  .buddy-avatar{font-size:19px;line-height:1}
+  .flow-scene{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;perspective:800px;margin:12px 0 5px}
+  .flow-scene.paging-scene{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .flow-stage{position:relative;min-width:0;min-height:84px;padding:11px;border:1px solid var(--border);border-radius:13px;background:var(--surface);text-align:center;transform:rotateX(8deg);transform-style:preserve-3d;box-shadow:0 7px 0 var(--border);transition:transform .35s ease,box-shadow .35s ease,border-color .35s ease}
+  .flow-stage:not(:last-child)::after{content:"➜";position:absolute;z-index:2;right:-15px;top:50%;transform:translateY(-50%);color:var(--primary);font-size:20px;font-weight:900;text-shadow:0 2px 0 var(--surface)}
+  .flow-stage.active{transform:rotateX(0) translateY(-4px) translateZ(18px);border-color:var(--primary);box-shadow:0 10px 18px rgba(15,23,42,.14);animation:flow-arrive .45s ease both}
+  .flow-stage.complete{border-color:var(--green)}
+  .flow-stage strong{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}
+  .flow-token{display:inline-flex;align-items:center;justify-content:center;margin:2px;padding:5px 9px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);font-size:12px;font-weight:750;transform-style:preserve-3d}
+  .flow-stage.active .flow-token{animation:token-arrive .45s cubic-bezier(.2,.8,.2,1) both}
+  .flow-token.hot{background:var(--green-bg);color:var(--green);border-color:var(--green)}
+  .flow-token.fault{background:var(--red-bg);color:var(--red);border-color:var(--red)}
+  .cube-token{display:inline-grid;place-items:center;width:78px;height:76px;margin:3px;perspective:600px;vertical-align:middle}
+  .cube-token.small{width:54px;height:54px;--cube-size:32px}
+  .cube-token.large{width:88px;height:86px;--cube-size:54px}
+  .cube3d{position:relative;width:var(--cube-size,44px);height:var(--cube-size,44px);transform-style:preserve-3d;animation:cube-spin 5s linear infinite}
+  .cube-face{position:absolute;inset:0;display:grid;place-items:center;overflow:hidden;padding:2px;color:#fff;font-size:10px;font-weight:850;text-align:center;border:1px solid rgba(255,255,255,.55);backface-visibility:hidden}
+  .cube-front{display:flex;flex-direction:column;gap:0;background:linear-gradient(145deg,var(--primary),var(--primary-2));transform:translateZ(calc(var(--cube-size,44px)/2))}
+  .cube-smile{font-size:13px;line-height:1}
+  .cube-label{max-width:100%;font-size:9px;line-height:1.1}
+  .cube-back{background:color-mix(in srgb,var(--primary) 65%,#111827);transform:rotateY(180deg) translateZ(calc(var(--cube-size,44px)/2))}
+  .cube-right{background:color-mix(in srgb,var(--primary) 75%,#111827);transform:rotateY(90deg) translateZ(calc(var(--cube-size,44px)/2))}
+  .cube-left{background:color-mix(in srgb,var(--accent) 65%,#111827);transform:rotateY(-90deg) translateZ(calc(var(--cube-size,44px)/2))}
+  .cube-top{background:color-mix(in srgb,var(--accent) 75%,#fff);color:#102331;transform:rotateX(90deg) translateZ(calc(var(--cube-size,44px)/2))}
+  .cube-bottom{background:color-mix(in srgb,var(--primary-2) 60%,#111827);transform:rotateX(-90deg) translateZ(calc(var(--cube-size,44px)/2))}
+  .cube-token.transferring{animation:cube-transfer .72s cubic-bezier(.2,.8,.2,1) both}
+  @keyframes cube-spin{from{transform:rotateX(-22deg) rotateY(0)}to{transform:rotateX(338deg) rotateY(360deg)}}
+  @keyframes cube-transfer{from{opacity:.35;transform:translate3d(-28px,-18px,34px) scale(.72)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
+  .journey-roadmap{position:relative;margin:12px 0 4px;padding:12px 4px 4px}
+  .journey-line{position:absolute;z-index:0;left:10%;right:10%;top:34px;height:4px;border-radius:99px;background:repeating-linear-gradient(90deg,var(--accent) 0 10px,transparent 10px 16px);opacity:.7}
+  .journey-buddy{position:absolute;z-index:2;top:2px;left:10%;width:32px;height:32px;display:grid;place-items:center;border:2px solid var(--primary);border-radius:50%;background:var(--surface);font-size:19px;box-shadow:0 4px 10px rgba(0,0,0,.18);transform:translateX(-50%);animation:journey-travel 8s ease-in-out infinite}
+  .journey-steps{position:relative;z-index:1;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}
+  .journey-step{min-width:0;text-align:center;animation:journey-bounce 8s ease-in-out infinite}
+  .journey-icon{width:42px;height:42px;margin:12px auto 6px;display:grid;place-items:center;border:1px solid var(--border);border-radius:14px;background:var(--surface);font-size:20px;box-shadow:0 4px 0 var(--border)}
+  .journey-copy strong,.journey-copy small{display:block}
+  .journey-copy strong{font-size:12px}
+  .journey-copy small{margin-top:2px;color:var(--muted);font-size:10px;line-height:1.3}
+  .journey-step:nth-child(2){animation-delay:1.6s}
+  .journey-step:nth-child(3){animation-delay:3.2s}
+  .journey-step:nth-child(4){animation-delay:4.8s}
+  .journey-step:nth-child(5){animation-delay:6.4s}
+  @keyframes journey-travel{
+    0%,14%{left:10%}20%,34%{left:30%}40%,54%{left:50%}
+    60%,74%{left:70%}80%,94%{left:90%}100%{left:10%}
+  }
+  @keyframes journey-bounce{
+    0%,14%,100%{transform:translateY(0)}
+    7%{transform:translateY(-5px)}
+  }
+  @keyframes flow-arrive{from{opacity:.55;filter:brightness(.85)}to{opacity:1;filter:brightness(1)}}
+  @keyframes token-arrive{from{opacity:0;transform:translateY(-18px) translateZ(28px) rotateX(-35deg) scale(.82)}to{opacity:1;transform:translateY(0) translateZ(0) rotateX(0) scale(1)}}
   .preset-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
   .preset{border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:999px;padding:8px 13px;cursor:pointer;font-size:13.5px;font-weight:650}
   .preset:hover,.preset.active{border-color:var(--primary);color:var(--primary);background:#eef2ff}
-  [data-theme="dark"] .preset.active{background:#312e81;color:#e0e7ff}
+  [data-theme="dark"] .preset:hover,[data-theme="dark"] .preset.active{background:#25355c;color:#e0e7ff}
   .slider-val{font-weight:800;color:var(--primary)}
   .history{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
   .history button{border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:999px;padding:6px 11px;cursor:pointer;font-size:12.5px}
@@ -183,7 +244,11 @@
   @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
   .skip{position:absolute;left:-9999px;top:0;background:var(--text);color:var(--bg);padding:10px 14px;border-radius:0 0 10px 0;z-index:99}
   .skip:focus{left:0}
-  @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;transition-duration:.01ms !important;scroll-behavior:auto !important} }
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.01ms !important;transition-duration:.01ms !important;scroll-behavior:auto !important}
+    .cube3d{animation:none !important;transform:rotateX(-22deg) rotateY(-28deg)}
+    .journey-buddy,.journey-step{animation:none !important}
+  }
   footer{max-width:1120px;margin:0 auto;padding:0 16px 36px;color:var(--muted);font-size:13px;text-align:center}
   /* ---------- Responsive ---------- */
   @media (max-width: 900px){
@@ -203,6 +268,23 @@
     .btn{width:100%}
     .btn-row .btn{flex:1 1 100%}
     .bar-row{grid-template-columns:84px 1fr 56px}
+    .flow-scene{grid-template-columns:1fr}
+    .flow-scene.paging-scene{grid-template-columns:1fr}
+    .flow-stage{min-height:64px}
+    .flow-stage:not(:last-child)::after{right:auto;top:auto;bottom:-19px;left:50%;transform:translateX(-50%) rotate(90deg)}
+    .journey-roadmap{min-height:360px;padding:8px 0}
+    .journey-line{top:30px;bottom:30px;left:20px;right:auto;width:4px;height:auto;background:repeating-linear-gradient(180deg,var(--accent) 0 10px,transparent 10px 16px)}
+    .journey-buddy{top:8%;left:20px;animation-name:journey-travel-vertical}
+    .journey-steps{grid-template-columns:1fr;gap:0}
+    .journey-step{position:relative;min-height:68px;padding:10px 0;text-align:left}
+    .journey-icon{position:absolute;top:12px;left:0;width:42px;height:42px;margin:0}
+    .journey-copy{display:block;padding:7px 0 0 54px}
+    .journey-copy strong{font-size:13px}
+    .journey-copy small{font-size:11px}
+    @keyframes journey-travel-vertical{
+      0%,14%{top:8%}20%,34%{top:27%}40%,54%{top:46%}
+      60%,74%{top:65%}80%,94%{top:84%}100%{top:8%}
+    }
   }
 </style>
 </head>
@@ -226,11 +308,11 @@
           <button class="color-dot" data-color="rose" style="background:linear-gradient(135deg,#e11d48,#f472b6)" title="Rose" aria-label="Rose colour" onclick="setColor('rose')"></button>
           <button class="color-dot" data-color="ocean" style="background:linear-gradient(135deg,#0369a1,#22d3ee)" title="Ocean" aria-label="Ocean colour" onclick="setColor('ocean')"></button>
         </div>
-        <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle dark mode">Dark mode</button>
+        <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Switch to light mode">Light mode</button>
       </div>
     </div>
     <div class="hero-copy">
-      <h2 id="greeting">Hey praker, let's see how an OS thinks.</h2>
+      <h2 id="greeting">Hello — let's see how an OS thinks.</h2>
       <p>Think of processes as people waiting in line, and memory as a small desk that can only hold a few pages at a time. I'll walk you through who gets to run next, what stays on the desk, and why — in plain English, no jargon needed.</p>
     </div>
     <div class="hero-stats" id="heroStats">
@@ -269,6 +351,7 @@
         <div class="eyebrow">Quick start · no setup</div>
         <h2>Try it in one click</h2>
         <p class="sub">Four familiar processes, every way of choosing, every memory policy — compared for you, with the story behind the numbers.</p>
+        <div id="dashboardScene" aria-live="polite"></div>
         <div class="btn-row">
           <button class="btn" onclick="runDemo()">Show me what happens</button>
           <button class="btn ghost" onclick="showTab('scheduling')">Meet the processes →</button>
@@ -353,7 +436,7 @@
           <button class="preset" onclick="loadMemoryPreset('sequential',this)">One thing after another</button>
         </div>
       </div>
-      <div class="btn-row"><button class="btn" onclick="runReplacement()">Show me the pages</button></div>
+      <div class="btn-row"><button class="btn" onclick="runReplacement()">Show page workflow</button></div>
       <div id="replPlayer"></div>
       <div id="replOut"></div>
     </div>
@@ -400,7 +483,8 @@ const COLORS = {P1:'#4f46e5',P2:'#059669',P3:'#d97706',P4:'#dc2626',P5:'#7c3aed'
 let processes = [];
 let demoCache = null;
 let lastSched = null, lastRepl = null, lastCombined = null;
-let playTimer = null, replTimer = null;
+let playTimer = null, replTimer = null, pagingTimer = null, combinedTimer = null;
+let ganttIndex = 0, combinedGanttIndex = 0, pagingIndex = 0, combinedIndex = 0, lastPaging = null;
 
 function toast(msg){
   const el = document.getElementById('toast');
@@ -461,39 +545,139 @@ function downloadResult(obj, filename){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href), 1000); toast('Downloaded ' + filename);
 }
-function stopPlayers(){ clearInterval(playTimer); clearInterval(replTimer); playTimer = null; replTimer = null; }
-function ganttPlayerHtml(r){
+function stopPlayers(){
+  clearInterval(playTimer); clearInterval(replTimer); clearInterval(pagingTimer); clearInterval(combinedTimer);
+  playTimer = null; replTimer = null; pagingTimer = null; combinedTimer = null;
+}
+function cubeHtml(label, side, size='', moving=false){
+  return `<span class="cube-token ${size}${moving?' transferring':''}" role="img" aria-label="${label}, ${side}">
+    <span class="cube3d" aria-hidden="true">
+      <span class="cube-face cube-front"><span class="cube-smile">☺</span><span class="cube-label">${label}</span></span><span class="cube-face cube-back">${side}</span>
+      <span class="cube-face cube-right">RAM</span><span class="cube-face cube-left">OS</span>
+      <span class="cube-face cube-top">PAGE</span><span class="cube-face cube-bottom">${side}</span>
+    </span>
+  </span>`;
+}
+function buddyNote(message){
+  return `<div class="buddy-note"><span class="buddy-avatar" aria-hidden="true">🤖</span><p><b>Byte says:</b> ${message}</p></div>`;
+}
+function workflowAnimationHtml(description){
+  return `<div class="workflow"><h4>Byte's little OS adventure</h4>
+    <div class="journey-roadmap" role="img" aria-label="A process arrives, waits in the ready queue, runs on the CPU, checks memory, then finishes">
+      <div class="journey-line"></div><span class="journey-buddy" aria-hidden="true">🤖</span>
+      <div class="journey-steps">
+        <div class="journey-step"><span class="journey-icon">📨</span><span class="journey-copy"><strong>Arrives</strong><small>A little job shows up</small></span></div>
+        <div class="journey-step"><span class="journey-icon">⏳</span><span class="journey-copy"><strong>Waits</strong><small>Joins the ready queue</small></span></div>
+        <div class="journey-step"><span class="journey-icon">🖥️</span><span class="journey-copy"><strong>Runs</strong><small>Gets a CPU turn</small></span></div>
+        <div class="journey-step"><span class="journey-icon">📚</span><span class="journey-copy"><strong>Checks RAM</strong><small>Finds or fetches a page</small></span></div>
+        <div class="journey-step"><span class="journey-icon">✅</span><span class="journey-copy"><strong>Finishes</strong><small>Job well done!</small></span></div>
+      </div>
+    </div><p>${description}</p>${buddyNote('I guide each job along. If it needs another CPU turn, around the queue we go!')}</div>`;
+}
+function ganttPlayerHtml(r, target='schedOut'){
+  const prefix=target==='combOut'?'combGantt':'gantt';
   return `<div class="player" role="group" aria-label="Play the schedule step by step">
-    <button class="btn ghost" onclick="playGantt()">Play it step by step</button>
-    <span class="step-label" id="ganttStepLabel">Tap Play to watch time pass</span>
+    <button class="btn ghost" onclick="playGantt('${target}')">Play CPU workflow</button>
+    <button class="btn ghost" onclick="nextGanttStep('${target}')">Next step</button>
+    <span class="step-label" id="${prefix}StepLabel">See how the ready queue chooses a process</span>
+  </div><div class="workflow" id="${prefix}Workflow" aria-live="polite">
+    <h4>How scheduling works</h4><p>Play to follow arrivals, the ready queue, CPU turns, and completion.</p>
   </div>`;
 }
-function playGantt(){
-  if(!lastSched) return; stopPlayers();
-  const segs = document.querySelectorAll('#schedOut .gantt-seg');
-  let i = 0; segs.forEach(s=>s.classList.add('dim'));
-  const label = document.getElementById('ganttStepLabel');
-  playTimer = setInterval(()=>{
-    if(i >= segs.length){ clearInterval(playTimer); segs.forEach(s=>s.classList.remove('dim','now')); if(label) label.textContent = 'Done — everyone finished by time ' + lastSched.total_time + '.'; return; }
-    segs.forEach(s=>s.classList.remove('now')); segs[i].classList.remove('dim'); segs[i].classList.add('now');
-    const seg = lastSched.gantt[i];
-    if(label) label.textContent = 'Time ' + seg.start + '–' + seg.end + ': ' + seg.pid + ' is running.';
-    i++;
-  }, 900);
+function showGanttStep(i, target='schedOut'){
+  const result=target==='combOut'?(lastCombined&&lastCombined.schedule):lastSched;
+  if(!result || !result.gantt.length) return;
+  const prefix=target==='combOut'?'combGantt':'gantt';
+  const root=document.getElementById(target);
+  const segs = root.querySelectorAll('.gantt-seg');
+  if(i >= segs.length) i = 0;
+  if(target==='combOut') combinedGanttIndex=i; else ganttIndex=i;
+  segs.forEach((s,n)=>{ s.classList.toggle('dim', n !== i); s.classList.toggle('now', n === i); });
+  const label = document.getElementById(prefix+'StepLabel');
+  const workflow = document.getElementById(prefix+'Workflow');
+  const seg = result.gantt[i];
+  if(!seg) return;
+  const remaining = Object.fromEntries(result.processes.map(p=>[p.pid,p.burst_time]));
+  for(let n=0;n<i;n++){
+    const prior=result.gantt[n];
+    if(remaining[prior.pid] != null) remaining[prior.pid]-=prior.end-prior.start;
+  }
+  const ready = result.processes.filter(p=>p.pid!==seg.pid && p.arrival_time<=seg.start && remaining[p.pid]>0);
+  const after = remaining[seg.pid] == null ? 0 : remaining[seg.pid]-(seg.end-seg.start);
+  const algorithm=result.algorithm.toLowerCase();
+  const current=result.processes.find(p=>p.pid===seg.pid);
+  const finished=result.processes.filter(p=>remaining[p.pid]<=0 || p.pid===seg.pid && after<=0);
+  const queueTokens=ready.length?ready.map(p=>`<span class="flow-token">${p.pid}</span>`).join(''):'<span class="muted">No ready jobs</span>';
+  const cpuToken=seg.pid==='IDLE'?'<span class="flow-token">Idle</span>':cubeHtml(seg.pid,'CPU','large',true);
+  const doneTokens=finished.length?finished.map(p=>`<span class="flow-token hot">${p.pid}</span>`).join(''):'<span class="muted">Not finished yet</span>';
+  const scene=`<div class="flow-scene" aria-label="Animated process journey from ready queue to CPU to completion">
+    <div class="flow-stage ${ready.length?'active':''}"><strong>Ready queue</strong>${queueTokens}</div>
+    <div class="flow-stage ${seg.pid!=='IDLE'&&after>0?'active':''}"><strong>CPU</strong>${cpuToken}</div>
+    <div class="flow-stage ${finished.length?'active complete':''}"><strong>Finished</strong>${doneTokens}</div>
+  </div>`;
+  const policy=seg.pid==='IDLE' ? '' : algorithm.includes('round robin') ? 'Round Robin gives this process a time slice, then sends it to the back of the queue if it still needs CPU time.'
+    : algorithm.includes('shortest remaining') ? 'SRTF compares remaining CPU time at each decision and can interrupt a longer job.'
+    : algorithm.includes('priority') ? `Priority chooses the lowest priority number (1 is highest); ${seg.pid} has priority ${current.priority}.`
+    : algorithm.startsWith('sjf') ? `SJF chooses the shortest available burst; ${seg.pid} needs ${current.burst_time} units and runs to completion.`
+    : 'FCFS gives the CPU to the process that arrived earliest and runs its burst to completion.';
+  if(seg.pid==='IDLE'){
+    if(label) label.textContent=`Time ${seg.start}–${seg.end}: CPU is idle.`;
+    if(workflow) workflow.innerHTML=`<h4>Nothing is ready yet</h4>${scene}<p>The CPU stays idle from ${seg.start} to ${seg.end}; the next process has not arrived.</p>${buddyNote('No jobs yet. The CPU is taking a tiny coffee break until someone arrives.')}`;
+  } else {
+    if(label) label.textContent=`Time ${seg.start}–${seg.end}: ${seg.pid} is running.`;
+    const buddy=after<=0?`${seg.pid} finished! Off to the done pile — nice work, little job.`:
+      algorithm.includes('round robin')?`${seg.pid} got a turn. If it still needs time, it politely scoots to the back of the queue.`:
+      algorithm.startsWith('sjf')?`${seg.pid} is taking its short-job express lane through the CPU.`:
+      `${seg.pid} is having its CPU turn. The other jobs are cheering from the queue.`;
+    if(workflow) workflow.innerHTML=`<h4>${seg.pid} gets the CPU · time ${seg.start}–${seg.end}</h4>${scene}
+      <p>${policy}</p><p>${seg.pid} uses ${seg.end-seg.start} time unit${seg.end-seg.start===1?'':'s'}; ${after<=0?'the process finishes.':after+' unit'+(after===1?' remains.':'s remain.')}</p>
+      <p>Other arrived jobs ready to compete:</p><div class="workflow-state">${ready.length?ready.map(p=>`<span>${p.pid} · ${remaining[p.pid]} left${algorithm.includes('priority')?' · priority '+p.priority:algorithm.startsWith('sjf')?' · burst '+p.burst_time:algorithm.startsWith('fcfs')?' · arrived '+p.arrival_time:''}</span>`).join(''):'<span>No other arrived process is waiting</span>'}</div>${buddyNote(buddy)}`;
+  }
+}
+function nextGanttStep(target='schedOut'){
+  const result=target==='combOut'?(lastCombined&&lastCombined.schedule):lastSched;
+  if(!result || !result.gantt.length) return;
+  stopPlayers();
+  const index=target==='combOut'?combinedGanttIndex:ganttIndex;
+  showGanttStep((index+1)%result.gantt.length,target);
+}
+function playGantt(target='schedOut'){
+  const result=target==='combOut'?(lastCombined&&lastCombined.schedule):lastSched;
+  if(!result || !result.gantt.length) return; stopPlayers();
+  let i=0;
+  showGanttStep(i++,target);
+  playTimer=setInterval(()=>{
+    if(i>=result.gantt.length){clearInterval(playTimer);playTimer=null;return;}
+    showGanttStep(i++,target);
+  },1100);
 }
 function replPlayerHtml(r){
   return `<div class="player" role="group" aria-label="Step through page replacement">
-    <button class="btn ghost" onclick="playRepl()">Play it step by step</button>
+    <button class="btn ghost" onclick="playRepl()">Play page replacement workflow</button>
     <input type="range" id="replSlider" min="0" max="${r.steps.length-1}" value="0" oninput="showReplStep(+this.value)" aria-label="Step through references">
     <span class="step-label" id="replStepLabel">Step 1 of ${r.steps.length}</span>
   </div><div id="replStepOut" style="margin-top:10px"></div>`;
 }
 function showReplStep(idx){
   if(!lastRepl) return;
+  idx=Math.max(0,Math.min(idx,lastRepl.steps.length-1));
   const s = lastRepl.steps[idx];
   const out = document.getElementById('replStepOut'); if(!out) return;
-  out.innerHTML = `<div class="step"><b>${s.page}</b><span class="badge ${s.fault?'red':'green'}">${s.fault?'FAULT — had to fetch it':'HIT — already there'}</span>${framesHtml(s)}<span class="meta">${s.evicted!=null?'threw out '+s.evicted:''}</span></div>
-  <p class="hint">${s.fault ? 'This page was not on the desk, so the computer fetched it from disk.' : 'This page was already on the desk. Fast!'}</p>`;
+  const reason=s.evicted==null ? 'An empty frame was available.' : lastRepl.algorithm==='FIFO' ? `FIFO removes the oldest loaded page (${s.evicted}).`
+    : lastRepl.algorithm==='LRU' ? `LRU removes the page used least recently (${s.evicted}).`
+    : lastRepl.algorithm==='OPTIMAL' ? `Optimal removes the page whose next use is farthest away (${s.evicted}).`
+    : lastRepl.algorithm==='LFU' ? `LFU removes the least frequently used page (${s.evicted}).`
+    : `Clock gives referenced pages a second chance, then replaces page ${s.evicted}.`;
+  const frameTokens=s.frames.map((page,n)=>page===s.page?cubeHtml(`P${page}`,`F${n}`,'small',s.fault):`<span class="flow-token ${page===-1?'':'hot'}">${page===-1?`F${n}: Empty`:`F${n}: ${page}`}</span>`).join('');
+  const diskToken=s.evicted!=null?cubeHtml(`P${s.evicted}`,'DISK','small',true):'<span class="muted">No eviction</span>';
+  out.innerHTML = `<div class="step"><b>${s.page}</b><span class="badge ${s.fault?'red':'green'}">${s.fault?'FAULT — load from disk':'HIT — already in memory'}</span>${framesHtml(s)}<span class="meta">${s.evicted!=null?'evicted '+s.evicted:''}</span></div>
+  <div class="workflow"><h4>Reference ${idx+1}: process asks for page ${s.page}</h4>
+    <div class="flow-scene" aria-label="Animated page request flowing into memory frames">
+      <div class="flow-stage active"><strong>Request</strong>${cubeHtml(`P${s.page}`,'REQUEST','large',true)}</div>
+      <div class="flow-stage active"><strong>RAM frames</strong>${frameTokens}</div>
+      <div class="flow-stage ${s.evicted!=null?'active':''}"><strong>Evicted to disk</strong>${diskToken}</div>
+    </div><p>${s.fault ? 'Page-table lookup misses, so the OS loads the page from disk into a frame.' : 'Page-table lookup finds this page in a frame; no disk fetch is needed.'} ${reason}</p>
+    ${buddyNote(s.fault?`Oops, page ${s.page} wasn't home. I fetched it${s.evicted!=null?` and asked page ${s.evicted} to make room`:''}.`:`Page ${s.page} was already tucked into RAM. No disk trip needed — speedy!`)}</div>`;
   const label = document.getElementById('replStepLabel'); if(label) label.textContent = 'Step ' + (idx+1) + ' of ' + lastRepl.steps.length;
   const slider = document.getElementById('replSlider'); if(slider) slider.value = idx;
 }
@@ -519,9 +703,18 @@ function toggleTheme(){
   const next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
   el.setAttribute('data-theme', next);
   localStorage.setItem('os-sim-theme', next);
-  document.getElementById('themeBtn').textContent = next === 'dark' ? 'Light mode' : 'Dark mode';
+  const btn = document.getElementById('themeBtn');
+  btn.textContent = next === 'dark' ? 'Light mode' : 'Dark mode';
+  btn.setAttribute('aria-label', next === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
 }
-(function(){ const t = localStorage.getItem('os-sim-theme'); if(t){ document.documentElement.setAttribute('data-theme', t); document.getElementById('themeBtn').textContent = t==='dark' ? 'Light mode' : 'Dark mode'; } })();
+(function restoreTheme(){
+  const saved = localStorage.getItem('os-sim-theme');
+  if(saved === 'dark' || saved === 'light') document.documentElement.setAttribute('data-theme', saved);
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const btn = document.getElementById('themeBtn');
+  btn.textContent = isDark ? 'Light mode' : 'Dark mode';
+  btn.setAttribute('aria-label', isDark ? 'Switch to light mode' : 'Switch to dark mode');
+})();
 
 function showTab(name){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -533,6 +726,18 @@ async function loadDemo(){
   if(!demoCache) demoCache = await (await fetch('/api/demo')).json();
   processes = JSON.parse(JSON.stringify(demoCache.processes));
   renderProcs();
+  renderDashboardScene();
+}
+function renderDashboardScene(){
+  const out=document.getElementById('dashboardScene');
+  if(!out) return;
+  const scheduling=demoCache&&demoCache.scheduling;
+  const replacement=demoCache&&demoCache.replacement;
+  const bestS=scheduling&&scheduling.reduce((best,result)=>result.avg_waiting_time<best.avg_waiting_time?result:best,scheduling[0]);
+  const bestR=replacement&&replacement.reduce((best,result)=>result.faults<best.faults?result:best,replacement[0]);
+  out.innerHTML=workflowAnimationHtml(bestS&&bestR
+    ? `Live preview: ${bestS.algorithm} keeps average wait lowest; ${bestR.algorithm} has the fewest demo page faults.`
+    : 'Watch a job move through the CPU while its pages travel through memory.');
 }
 function renderProcs(){
   document.getElementById('procEditor').innerHTML = processes.map((p,i)=>`
@@ -563,12 +768,12 @@ function humanSchedulingStory(r){
   <p>On average, a job waited <b>${r.avg_waiting_time}</b> units in line, and took <b>${r.avg_turnaround_time}</b> units from arriving to finishing. The longest wait was <b>${longest.pid}</b>, at <b>${longest.waiting_time}</b> units — that's the one this way of choosing was least kind to.</p>
   <p>The CPU was busy <b>${r.cpu_utilization}%</b> of the time, so almost no time was wasted sitting idle.</p></div>`;
 }
-function schedHtml(r, withPlayer=true){
+function schedHtml(r, withPlayer=true, target='schedOut'){
   return `<h3>${r.algorithm}</h3>${ganttHtml(r.gantt, r.total_time)}${humanSchedulingStory(r)}
   <div class="table-wrap"><table><tr><th>PID</th><th>Arrival</th><th>Burst</th><th>Start</th><th>Finish</th><th>Waiting</th><th>Turnaround</th><th>Response</th></tr>
   ${r.processes.map(p=>`<tr><td><b>${p.pid}</b></td><td>${p.arrival_time}</td><td>${p.burst_time}</td><td>${p.start_time}</td><td>${p.completion_time}</td><td>${p.waiting_time}</td><td>${p.turnaround_time}</td><td>${p.response_time}</td></tr>`).join('')}</table></div>
-  ${withPlayer ? `<div class="btn-row"><button class="btn ghost" onclick="copyResult(lastSched, 'scheduling result copied')">Copy result</button><button class="btn ghost" onclick="downloadResult(lastSched, 'scheduling-result.json')">Download JSON</button></div>` : ''}
-  ${withPlayer ? ganttPlayerHtml(r) : ''}
+  ${withPlayer ? `<div class="btn-row"><button class="btn ghost" onclick="copyResult(${target==='combOut'?'lastCombined':'lastSched'}, '${target==='combOut'?'combined':'scheduling'} result copied')">Copy result</button><button class="btn ghost" onclick="downloadResult(${target==='combOut'?'lastCombined':'lastSched'}, '${target==='combOut'?'combined':'scheduling'}-result.json')">Download JSON</button></div>` : ''}
+  ${withPlayer ? ganttPlayerHtml(r, target) : ''}
   <div class="stats">
     <div class="stat"><b>${r.avg_waiting_time}</b><span>Waiting, on average</span><small>time units</small></div>
     <div class="stat"><b>${r.avg_turnaround_time}</b><span>Arrival to finish, on average</span><small>time units</small></div>
@@ -582,20 +787,24 @@ async function post(path, body){
 }
 function setBusy(el, busy){ el.querySelectorAll('button').forEach(b=>b.disabled=busy); }
 async function runScheduling(){
+  stopPlayers();
   const out = document.getElementById('schedOut'); out.innerHTML = '<div class="skeleton" style="height:120px"></div><p class="muted">Give me a second — I\'m lining everyone up…</p>';
   try {
     lastSched = await post('/api/scheduling', {processes, algorithm: document.getElementById('schedAlgo').value, quantum: +document.getElementById('quantum').value});
     saveHistory('Scheduling', lastSched.algorithm + ' · avg wait ' + lastSched.avg_waiting_time);
     out.innerHTML = schedHtml(lastSched) + historyHtml();
+    playGantt();
     toast('Done — ' + lastSched.algorithm + ', average wait ' + lastSched.avg_waiting_time + '.');
     out.scrollIntoView({behavior:'smooth', block:'nearest'});
   }
   catch(e){ out.innerHTML = `<p class="error">Hmm, that did not work: ${e.message}. Check the numbers and try again — nothing is broken, I promise.</p>`; }
 }
 async function compareScheduling(){
+  stopPlayers();
   const out = document.getElementById('schedOut'); out.innerHTML = '<p class="muted">Comparing them all for you — who was kindest to the waiting jobs?</p>';
   try {
     if(!demoCache) demoCache = await (await fetch('/api/demo')).json();
+    renderDashboardScene();
     // Compare on the current edited processes by re-running each algorithm via the demo endpoint's logic is not available,
     // so run each one through the API.
     const algos = ['fcfs','sjf','srtf','rr','priority'];
@@ -605,6 +814,7 @@ async function compareScheduling(){
     out.innerHTML = `<h3>Comparison — lowest average waiting wins</h3>` +
       results.map(r=>`<div class="bar-row"><span>${r.algorithm.replace(' (non-preemptive)','').replace(' (preemptive SJF)','')}</span><div class="bar-track"><div class="bar-fill ${r===best?'best':''}" style="width:${Math.max(6, r.avg_waiting_time/ Math.max(...results.map(x=>x.avg_waiting_time)) *100)}%"></div></div><b>${r.avg_waiting_time}</b></div>`).join('') +
       `<div class="callout green"><b>Best: ${best.algorithm}</b> — average waiting ${best.avg_waiting_time}, average turnaround ${best.avg_turnaround_time}.</div>` +
+      workflowAnimationHtml(`Byte gives the CPU turn to ${best.algorithm}, which had the lowest average wait in this comparison.`) +
       results.map(r=>schedHtml(r,false)).join('<hr style="border:0;border-top:1px solid var(--border);margin:20px 0">');
   } catch(e){ out.innerHTML = `<p class="error">${e.message}</p>`; }
 }
@@ -625,6 +835,7 @@ function replHtml(r, showTrace=true){
   ${r.steps.length>12?`<p class="muted">Showing first 12 of ${r.steps.length} references.</p>`:''}` : ''}`;
 }
 async function runReplacement(){
+  stopPlayers();
   const out = document.getElementById('replOut'); out.innerHTML = '<p class="muted">Give me a second — I\'m working it out…</p>';
   const refs = document.getElementById('refs').value.split(',').map(x=>+x.trim()).filter(x=>!isNaN(x));
   try {
@@ -643,29 +854,132 @@ async function runReplacement(){
   } catch(e){ out.innerHTML = `<p class="error">Hmm, that did not work: ${e.message}. Check the reference string and try again.</p>`; }
 }
 async function runPaging(){
+  stopPlayers();
   const out = document.getElementById('pagingOut');
   const a = document.getElementById('addr').value, s = document.getElementById('pageSize').value;
   try {
     const d = await (await fetch(`/api/paging?address=${a}&page_size=${s}`)).json();
     if(d.error) throw new Error(d.error);
+    lastPaging = d;
     out.innerHTML = `<div class="stats"><div class="stat"><b>Page ${d.page}</b><span>Page number</span></div><div class="stat"><b>${d.offset}</b><span>Offset</span></div><div class="stat"><b>${d.physical_if_frame_3}</b><span>Physical, if in frame 3</span></div></div>
-    <p class="muted" style="margin-top:10px">Logical <b>${d.address}</b> ÷ ${d.page_size} = page <b>${d.page}</b> remainder <b>${d.offset}</b>. Physical address = frame × page size + offset.</p>`;
+    <p class="muted" style="margin-top:10px">Logical <b>${d.address}</b> ÷ ${d.page_size} = page <b>${d.page}</b> remainder <b>${d.offset}</b>. Physical address = frame × page size + offset.</p>
+    <div class="player" role="group" aria-label="Animate address translation">
+      <button class="btn ghost" onclick="playPaging()">Play translation</button>
+      <button class="btn ghost" onclick="nextPagingStep()">Next step</button>
+      <span class="step-label" id="pagingStepLabel">Follow the logical address into memory</span>
+    </div><div class="workflow" id="pagingWorkflow" aria-live="polite"></div>`;
+    pagingIndex=0;
+    showPagingStep(0);
   } catch(e){ out.innerHTML = `<p class="error">${e.message}</p>`; }
 }
+function showPagingStep(i){
+  if(!lastPaging) return;
+  const d=lastPaging, stages=[
+    [`1 · Receive the logical address`,`The process requests address ${d.address}. The MMU splits it into a page number and an offset.`],
+    [`2 · Split page and offset`,`${d.address} ÷ ${d.page_size} gives page ${d.page}; the remainder is offset ${d.offset}.`],
+    [`3 · Select a frame`,`A real page table maps page ${d.page} to a frame. For this illustration, assume it is frame 3; this demo does not inspect a live page table.`],
+    [`4 · Build the physical address`,`Frame 3 × ${d.page_size} + offset ${d.offset} = ${d.physical_if_frame_3}. The offset stays unchanged.`]
+  ];
+  pagingIndex=Math.max(0,Math.min(i,stages.length-1));
+  document.getElementById('pagingStepLabel').textContent=`Step ${pagingIndex+1} of ${stages.length}`;
+  const buddyMessages=[
+    'A program called for an address. I caught it before it wandered off.',
+    'I split the address into a page and an offset — like finding a book, then its bookmark.',
+    'The page table is my little map. Page found its frame; nobody has to guess.',
+    'The page and frame meet up, while the offset keeps its seat. Address delivery!'
+  ];
+  document.getElementById('pagingWorkflow').innerHTML=`<h4>${stages[pagingIndex][0]}</h4><p>${stages[pagingIndex][1]}</p>
+    <div class="flow-scene paging-scene" aria-label="Animated 3D logical address translation">
+      <div class="flow-stage ${pagingIndex===0?'active':pagingIndex>0?'complete':''}"><strong>Logical address</strong><span class="flow-token">${d.address}</span></div>
+      <div class="flow-stage ${pagingIndex===1?'active':pagingIndex>1?'complete':''}"><strong>Page + offset</strong><span class="flow-token">P${d.page}</span><span class="flow-token">${d.offset}</span></div>
+      <div class="flow-stage ${pagingIndex===2?'active':pagingIndex>2?'complete':''}"><strong>Page table → frame</strong>${cubeHtml('F3','PAGE TABLE','large',pagingIndex===2)}</div>
+      <div class="flow-stage ${pagingIndex===3?'active':''}"><strong>Physical address</strong><span class="flow-token">${d.physical_if_frame_3}</span></div>
+    </div>
+    <div class="workflow-state">${stages.map((s,n)=>`<span class="${n===pagingIndex?'current':n<pagingIndex?'done':''}">${n+1}. ${['Address','Split','Page table','Physical'][n]}</span>`).join('')}</div>
+    ${buddyNote(buddyMessages[pagingIndex])}`;
+}
+function nextPagingStep(){
+  if(!lastPaging) return;
+  stopPlayers();
+  showPagingStep((pagingIndex+1)%4);
+}
+function playPaging(){
+  if(!lastPaging) return;
+  stopPlayers();
+  let i=0;
+  showPagingStep(i++);
+  pagingTimer=setInterval(()=>{
+    if(i>=4){clearInterval(pagingTimer);pagingTimer=null;return;}
+    showPagingStep(i++);
+  },1100);
+}
+function combinedPlayerHtml(r){
+  return `<h3>Watch the CPU and shared memory</h3><p class="hint">Each CPU time unit makes one page request. Follow the selected replacement policy as requests hit or fault.</p>
+    <div class="player" role="group" aria-label="Animate combined scheduling and memory workflow">
+      <button class="btn ghost" onclick="playCombined()">Play combined workflow</button>
+      <button class="btn ghost" onclick="nextCombinedStep()">Next memory access</button>
+      <input type="range" id="combinedSlider" min="0" max="${Math.max(0,r.memory_trace.length-1)}" value="0" oninput="showCombinedStep(+this.value)" aria-label="Step through combined memory accesses">
+      <span class="step-label" id="combinedStepLabel">Step through CPU time and page requests</span>
+    </div><div class="workflow" id="combinedWorkflow" aria-live="polite"></div>`;
+}
+function showCombinedStep(i){
+  if(!lastCombined) return;
+  const trace=lastCombined.memory_trace||[];
+  if(!trace.length){
+    document.getElementById('combinedWorkflow').innerHTML='<h4>No page accesses to animate</h4><p>These processes did not include any page references.</p>';
+    return;
+  }
+  combinedIndex=Math.max(0,Math.min(i,trace.length-1));
+  const s=trace[combinedIndex], state=document.getElementById('combinedWorkflow');
+  const frames=s.frames.map((f,n)=>`<div class="frame ${f?'':'empty'} ${f&&f.pid===s.pid&&f.page===s.page?(s.hit?'hit':'fault'):''}" aria-label="Frame ${n}: ${f?f.pid+' page '+f.page:'empty'}">${f?f.page:'–'}</div>`).join('');
+  const decision=s.hit?'HIT — page already belongs to this process in memory.':'PAGE FAULT — load the requested page into shared memory.';
+  const eviction=s.evicted?` ${s.evicted.pid} page ${s.evicted.page} was evicted using ${lastCombined.replacement.toUpperCase()}.`:'<span class="muted">No page was evicted.</span>';
+  state.innerHTML=`<h4>CPU time ${s.time} · ${s.pid} requests page ${s.page}</h4>
+    <div class="flow-scene" aria-label="3D process page moving through shared memory">
+      <div class="flow-stage active"><strong>CPU request</strong>${cubeHtml(`P${s.page}`,s.pid,'large',true)}</div>
+      <div class="flow-stage active"><strong>Shared RAM</strong><div class="frames">${frames}</div></div>
+      <div class="flow-stage ${s.evicted?'active':''}"><strong>Disk / eviction</strong>${s.evicted?cubeHtml(`P${s.evicted.page}`,s.evicted.pid,'small',true):'<span class="muted">No eviction</span>'}</div>
+    </div><p>${decision}${eviction}</p>${buddyNote(s.hit?'Nice, a memory hit! That page was already waiting right where we left it.':'Page fault! I loaded the new page'+(s.evicted?` and replaced ${s.evicted.pid} page ${s.evicted.page} using ${lastCombined.replacement.toUpperCase()}.`:' into an empty frame. Nobody had to move!'))}
+    <p>Shared frames after this access (${lastCombined.replacement.toUpperCase()}).</p>`;
+  const label=document.getElementById('combinedStepLabel');
+  if(label) label.textContent=`Access ${combinedIndex+1} of ${trace.length} · t=${s.time}`;
+  const slider=document.getElementById('combinedSlider');
+  if(slider) slider.value=combinedIndex;
+}
+function nextCombinedStep(){
+  if(!lastCombined) return;
+  stopPlayers();
+  const total=(lastCombined.memory_trace||[]).length;
+  if(total) showCombinedStep((combinedIndex+1)%total);
+}
+function playCombined(){
+  if(!lastCombined || !lastCombined.memory_trace.length) return;
+  stopPlayers();
+  let i=0;
+  showCombinedStep(i++);
+  combinedTimer=setInterval(()=>{
+    if(i>=lastCombined.memory_trace.length){clearInterval(combinedTimer);combinedTimer=null;return;}
+    showCombinedStep(i++);
+  },850);
+}
 async function runCombined(){
+  stopPlayers();
   const out = document.getElementById('combOut'); out.innerHTML = '<p class="muted">Give me a second — I\'m working it out…</p>';
   try {
     const r = await post('/api/combined', {processes, algorithm: document.getElementById('combAlgo').value, replacement: document.getElementById('combRepl').value, frames: +document.getElementById('combFrames').value, quantum: 2});
     lastCombined = r;
     const total = r.total_faults + r.total_hits, rate = total ? Math.round(r.total_faults/total*100) : 0;
-    out.innerHTML = schedHtml(r.schedule) +
+    out.innerHTML = schedHtml(r.schedule, true, 'combOut') +
       `<h3>Memory: ${r.num_frames} frames · ${r.replacement.toUpperCase()}</h3>
        <div class="stats"><div class="stat"><b>${r.total_faults}</b><span>Page faults</span></div><div class="stat"><b>${r.total_hits}</b><span>Hits</span></div><div class="stat"><b>${rate}%</b><span>Fault rate</span></div></div>
        <div class="table-wrap"><table><tr><th>PID</th><th>Faults</th><th>Hits</th></tr>
        ${Object.keys(r.per_process_faults).map(pid=>`<tr><td><b>${pid}</b></td><td>${r.per_process_faults[pid]}</td><td>${r.per_process_hits[pid]}</td></tr>`).join('')}</table></div>` +
       (rate >= 90 ? `<div class="callout amber"><b>Thrashing.</b> The working sets don't fit in ${r.num_frames} frames, so almost every access faults. Try more frames, or SJF instead of Round Robin.</div>` :
        `<div class="callout green">Fault rate ${rate}% — some pages are being reused from memory instead of reloaded.</div>`)
+      + combinedPlayerHtml(r)
       + `<div class="btn-row"><button class="btn ghost" onclick="copyResult(lastCombined, 'combined result copied')">Copy result</button><button class="btn ghost" onclick="downloadResult(lastCombined, 'combined-result.json')">Download JSON</button></div>`;
+    combinedIndex=0;
+    showCombinedStep(0);
     saveHistory('Combined', r.schedule.algorithm + ' + ' + r.replacement.toUpperCase() + ' · ' + r.total_faults + ' faults');
     toast('Combined run done — ' + r.total_faults + ' faults, ' + r.total_hits + ' hits.');
   } catch(e){ out.innerHTML = `<p class="error">Hmm, that did not work: ${e.message}. Check the settings and try again.</p>`; }
@@ -680,12 +994,20 @@ const HELPER = {
 function askHelper(topic){
   document.getElementById('helperOut').innerHTML = `<div class="story" style="margin-top:0"><div class="who">Your OS guide says</div><p>${HELPER[topic] || 'Good question - try one of the buttons above and I will explain it in plain words.'}</p></div>`;
 }
-(function greet(){
-  const h = new Date().getHours();
-  const when = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+function greetingForHour(hour){
+  if(hour >= 4 && hour < 12) return 'Good morning';
+  if(hour >= 12 && hour < 16) return 'Good afternoon';
+  if(hour >= 16) return 'Good evening';
+  return 'Hello';
+}
+function updateGreeting(){
+  const now = new Date();
   const el = document.getElementById('greeting');
-  if(el) el.textContent = `${when}, praker — let's see how an OS thinks.`;
-})();
+  if(el) el.textContent = `${greetingForHour(now.getHours())}, there — let's see how an OS thinks.`;
+  const untilNextHour = (60 - now.getMinutes()) * 60000 - now.getSeconds() * 1000 - now.getMilliseconds();
+  window.setTimeout(updateGreeting, untilNextHour);
+}
+updateGreeting();
 async function runDemo(){
   const out = document.getElementById('demoOut'); out.innerHTML = '<p class="muted">Give me a second — I\'m lining everyone up and checking every page…</p>';
   try {
@@ -699,6 +1021,7 @@ async function runDemo(){
       <div class="btn-row"><button class="btn ghost" onclick="showTab('scheduling')">See scheduling details →</button><button class="btn ghost" onclick="showTab('memory')">See memory details →</button></div>`;
   } catch(e){ out.innerHTML = `<p class="error">${e.message}</p>`; }
 }
+renderDashboardScene();
 loadDemo();
 </script>
 </body>
