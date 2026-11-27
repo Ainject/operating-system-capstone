@@ -26,7 +26,7 @@ python app.py
 # or: run_local.bat         (Windows)
 ```
 
-Then open **http://127.0.0.1:8000** in your browser.
+Then open **http://..........** in your browser.
 
 The page is a responsive, mobile-friendly site with a dark-mode toggle and a colour picker in the header — Teal (the new default), Indigo, Emerald, Sunset, Rose, and Ocean. Tap a colour dot and the whole site changes: hero gradient, buttons, accents, and highlights, saved in your browser. It's written like a person, not a manual. It greets you by time of day, walks you through the idea in 3 friendly steps, explains every result in plain English (“here's who waited longest, and why”), and has an OS guide at the bottom that answers questions like “What is a page fault?” and “Why is SJF usually fastest?” in everyday words.
 
