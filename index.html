@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light" data-color="teal">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OS Simulator — Scheduling &amp; Memory</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --surface:#ffffff; --surface-2:#f8fafc; --text:#0f172a; --muted:#64748b;
+    --border:#e2e8f0; --primary:#4f46e5; --primary-2:#7c3aed; --accent:#06b6d4;
+    --green:#059669; --green-bg:#ecfdf5; --red:#dc2626; --red-bg:#fef2f2;
+    --amber:#d97706; --amber-bg:#fffbeb; --shadow:0 10px 30px rgba(15,23,42,.08);
+    --shadow-sm:0 4px 14px rgba(15,23,42,.06); --radius:18px;
+  }
+  /* Colour themes — pick one in the header, saved in your browser */
+  [data-color="teal"]{ --primary:#0d9488; --primary-2:#0891b2; --accent:#14b8a6; }
+  [data-color="indigo"]{ --primary:#4f46e5; --primary-2:#7c3aed; --accent:#06b6d4; }
+  [data-color="emerald"]{ --primary:#059669; --primary-2:#10b981; --accent:#84cc16; }
+  [data-color="sunset"]{ --primary:#ea580c; --primary-2:#dc2626; --accent:#f59e0b; }
+  [data-color="rose"]{ --primary:#e11d48; --primary-2:#db2777; --accent:#f472b6; }
+  [data-color="ocean"]{ --primary:#0369a1; --primary-2:#0284c7; --accent:#22d3ee; }
+  [data-theme="dark"]{
+    --bg:#0b1220; --surface:#111c33; --surface-2:#16233f; --text:#f1f5f9; --muted:#94a3b8;
+    --border:#24344f; --shadow:0 10px 30px rgba(0,0,0,.35); --shadow-sm:0 4px 14px rgba(0,0,0,.3);
+    --green-bg:#064e3b; --red-bg:#450a0a; --amber-bg:#451a03;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+  a{color:var(--primary)}
+  button{font:inherit}
+  /* ---------- Header ---------- */
+  .hero{background:linear-gradient(135deg,var(--primary) 0%,var(--primary-2) 48%,var(--accent) 100%);color:#fff;padding:28px 20px 0}
+  .hero-inner{max-width:1120px;margin:0 auto}
+  .topbar{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:46px;height:46px;border-radius:13px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);display:grid;place-items:center;font-weight:800;font-size:20px;backdrop-filter:blur(6px)}
+  .brand h1{margin:0;font-size:clamp(19px,3vw,26px);letter-spacing:-.02em;line-height:1.15}
+  .brand p{margin:2px 0 0;opacity:.88;font-size:13px}
+  .pill{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:7px 12px;border-radius:999px;font-size:12.5px;font-weight:600}
+  .dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 4px rgba(52,211,153,.25)}
+  .theme-btn{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.3);color:#fff;padding:8px 13px;border-radius:999px;cursor:pointer;font-weight:600;font-size:13px}
+  .color-picker{display:flex;gap:7px;align-items:center;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);padding:6px 9px;border-radius:999px}
+  .color-dot{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.7);cursor:pointer;padding:0}
+  .color-dot.active{box-shadow:0 0 0 2px #fff, 0 0 0 4px rgba(255,255,255,.45);transform:scale(1.12)}
+  .hero-copy{padding:22px 0 18px;max-width:720px}
+  .hero-copy h2{margin:0;font-size:clamp(26px,4.5vw,42px);line-height:1.08;letter-spacing:-.03em}
+  .hero-copy p{margin:12px 0 0;opacity:.92;font-size:clamp(15px,2vw,17px)}
+  .hero-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:0 0 20px}
+  .hero-stat{background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:13px 14px;backdrop-filter:blur(6px)}
+  .hero-stat b{display:block;font-size:22px;line-height:1.1}
+  .hero-stat span{font-size:12px;opacity:.85}
+  /* ---------- Nav ---------- */
+  .nav-wrap{position:sticky;top:0;z-index:20;background:color-mix(in srgb, var(--bg) 88%, transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
+  .nav{max-width:1120px;margin:0 auto;padding:10px 16px;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  .nav button{white-space:nowrap;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:9px 15px;border-radius:999px;cursor:pointer;font-weight:650;font-size:14px}
+  .nav button.active{background:var(--text);color:var(--bg);border-color:var(--text)}
+  main{max-width:1120px;margin:0 auto;padding:22px 16px 56px}
+  .panel{display:none;animation:fade .28s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  /* ---------- Cards & layout ---------- */
+  .grid{display:grid;gap:16px}
+  .grid-2{grid-template-columns:1.35fr .85fr}
+  .grid-3{grid-template-columns:repeat(3,1fr)}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);padding:20px}
+  .card h2{margin:0 0 4px;font-size:19px;letter-spacing:-.01em}
+  .card h3{margin:18px 0 8px;font-size:15px}
+  .sub{color:var(--muted);font-size:14px;margin:0 0 14px}
+  .eyebrow{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--primary);font-weight:800;margin-bottom:6px}
+  label{font-size:13px;font-weight:650;display:block;margin-bottom:5px}
+  input,select,textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:11px;background:var(--surface);color:var(--text);font:inherit}
+  input:focus,select:focus{outline:3px solid rgba(79,70,229,.18);border-color:var(--primary)}
+  .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;align-items:end}
+  .btn{background:linear-gradient(135deg,var(--primary),var(--primary-2));color:#fff;border:0;border-radius:11px;padding:11px 18px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px rgba(79,70,229,.28);transition:transform .12s ease, box-shadow .12s ease}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 9px 20px rgba(79,70,229,.32)}
+  .btn:active{transform:none}
+  .btn.ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--border);box-shadow:none}
+  .btn.teal{background:linear-gradient(135deg,#0891b2,#06b6d4);box-shadow:0 6px 16px rgba(6,182,212,.28)}
+  .btn:disabled{opacity:.6;cursor:wait}
+  .btn-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  /* ---------- Process editor ---------- */
+  .proc-head,.proc-row{display:grid;grid-template-columns:64px 1fr 1fr 1fr 1.9fr 36px;gap:8px;align-items:center}
+  .proc-head{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;padding:0 2px 6px}
+  .proc-row{margin-bottom:8px}
+  .proc-row input{padding:8px 9px}
+  .proc-dot{width:12px;height:12px;border-radius:50%;justify-self:center}
+  .icon-btn{border:1px solid var(--border);background:var(--surface);border-radius:9px;width:34px;height:36px;cursor:pointer;color:var(--muted);font-size:16px}
+  .icon-btn:hover{color:var(--red);border-color:var(--red)}
+  /* ---------- Results ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;margin-top:14px}
+  .stat{background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:13px}
+  .stat b{display:block;font-size:24px;letter-spacing:-.02em;line-height:1}
+  .stat span{font-size:12px;color:var(--muted);font-weight:600}
+  .stat small{display:block;color:var(--muted);font-size:11px;margin-top:4px}
+  .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px;margin-top:10px}
+  table{width:100%;border-collapse:collapse;font-size:14px;min-width:560px}
+  th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{background:var(--surface-2);font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  tr:last-child td{border-bottom:0}
+  .badge{display:inline-block;padding:3px 9px;border-radius:999px;font-size:12px;font-weight:700}
+  .badge.green{background:var(--green-bg);color:var(--green)}
+  .badge.red{background:var(--red-bg);color:var(--red)}
+  .badge.amber{background:var(--amber-bg);color:var(--amber)}
+  .badge.blue{background:#eef2ff;color:#4f46e5}
+  [data-theme="dark"] .badge.blue{background:#312e81;color:#c7d2fe}
+  /* Gantt */
+  .gantt{margin:14px 0 6px}
+  .gantt-bar{display:flex;height:44px;border-radius:11px;overflow:hidden;border:1px solid var(--border)}
+  .gantt-seg{display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:750;min-width:28px;overflow:hidden;white-space:nowrap;padding:0 4px}
+  .gantt-seg.idle{background:#94a3b8;color:#0f172a}
+  .gantt-scale{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:5px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--muted)}
+  .legend i{width:11px;height:11px;border-radius:4px;display:inline-block;margin-right:6px;vertical-align:-1px}
+  /* Bars for comparison */
+  .bar-row{display:grid;grid-template-columns:110px 1fr 72px;gap:12px;align-items:center;margin:10px 0;font-size:14px}
+  .bar-track{height:12px;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--primary),var(--accent))}
+  .bar-fill.best{background:linear-gradient(90deg,#059669,#34d399)}
+  /* Frames */
+  .frames{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .frame{width:52px;height:52px;border-radius:12px;border:2px solid var(--border);display:grid;place-items:center;font-weight:800;font-size:17px;background:var(--surface-2)}
+  .frame.hit{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+  .frame.fault{border-color:var(--red);background:var(--red-bg);color:var(--red)}
+  .frame.empty{color:var(--muted);border-style:dashed}
+  .steps{display:grid;gap:8px}
+  .step{display:flex;gap:12px;align-items:center;border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:var(--surface)}
+  .step b{font-size:18px;min-width:28px;text-align:center}
+  .step .meta{margin-left:auto;text-align:right;font-size:12px;color:var(--muted)}
+  .callout{border-radius:13px;padding:13px 15px;font-size:14px;margin-top:12px}
+  .callout.amber{background:var(--amber-bg);border:1px solid #fcd34d}
+  .callout.green{background:var(--green-bg);border:1px solid #6ee7b7}
+  .error{color:var(--red);background:var(--red-bg);border:1px solid #fecaca;padding:11px 13px;border-radius:11px;font-size:14px}
+  .muted{color:var(--muted);font-size:13px}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--surface-2);border:1px solid var(--border);border-bottom-width:2px;border-radius:6px;padding:1px 7px;font-size:12.5px}
+  /* ---------- Human-like touches ---------- */
+  .story{background:linear-gradient(135deg,#eef2ff,#f0fdfa);border:1px solid #c7d2fe;border-radius:14px;padding:15px 16px;margin-top:14px;font-size:15px}
+  [data-theme="dark"] .story{background:#1e1b4b;border-color:#3730a3}
+  .story b{color:var(--primary)}
+  .story p{margin:6px 0}
+  .story .who{font-weight:800;font-size:13px;letter-spacing:.02em}
+  details{border:1px solid var(--border);border-radius:12px;padding:11px 13px;margin-top:10px;background:var(--surface-2)}
+  details summary{cursor:pointer;font-weight:700;font-size:14px}
+  details p{margin:8px 0 0;color:var(--muted);font-size:14px}
+  .guide-steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+  .guide-step{background:var(--surface-2);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .guide-step b{display:block;font-size:14px;margin-bottom:4px}
+  .guide-step span{font-size:13px;color:var(--muted)}
+  .guide-step .num{width:28px;height:28px;border-radius:50%;background:var(--primary);color:#fff;display:grid;place-items:center;font-weight:800;font-size:13px;margin-bottom:9px}
+  .guide{display:flex;gap:13px;align-items:flex-start}
+  .avatar{width:46px;height:46px;min-width:46px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));color:#fff;display:grid;place-items:center;font-weight:800;font-size:17px}
+  .bubble{background:var(--surface-2);border:1px solid var(--border);border-radius:4px 16px 16px 16px;padding:13px 15px;font-size:15px;flex:1}
+  .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chip{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;padding:8px 13px;cursor:pointer;font-size:13.5px;font-weight:600}
+  .chip:hover{border-color:var(--primary);color:var(--primary)}
+  .hint{font-size:12.5px;color:var(--muted);margin-top:5px}
+  .friendly{font-size:15px}
+  /* ---------- UX polish ---------- */
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+  .card{transition:transform .15s ease, box-shadow .15s ease}
+  .card:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+  .btn{transition:transform .12s ease, box-shadow .12s ease, filter .12s ease}
+  .btn:hover{filter:brightness(1.05)}
+  .bar-fill{transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .gantt-seg{transition:opacity .25s ease, filter .25s ease}
+  .gantt-seg.dim{opacity:.35}
+  .gantt-seg.now{filter:brightness(1.25);box-shadow:inset 0 0 0 2px #fff}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,80px);background:var(--text);color:var(--bg);padding:12px 18px;border-radius:999px;font-weight:650;font-size:14px;box-shadow:var(--shadow);opacity:0;transition:transform .3s ease, opacity .3s ease;z-index:50;max-width:92vw;text-align:center}
+  .toast.show{transform:translate(-50%,0);opacity:1}
+  .player{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  .player input[type=range]{flex:1;min-width:140px;accent-color:var(--primary)}
+  .player .step-label{font-weight:700;font-size:14px;min-width:110px}
+  .preset-row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .preset{border:1px solid var(--border);background:var(--surface-2);color:var(--text);border-radius:999px;padding:8px 13px;cursor:pointer;font-size:13.5px;font-weight:650}
+  .preset:hover,.preset.active{border-color:var(--primary);color:var(--primary);background:#eef2ff}
+  [data-theme="dark"] .preset.active{background:#312e81;color:#e0e7ff}
+  .slider-val{font-weight:800;color:var(--primary)}
+  .history{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+  .history button{border:1px dashed var(--border);background:transparent;color:var(--muted);border-radius:999px;padding:6px 11px;cursor:pointer;font-size:12.5px}
+  .history button:hover{color:var(--primary);border-color:var(--primary)}
+  .skeleton{border-radius:12px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:shimmer 1.2s infinite}
+  @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
+  .skip{position:absolute;left:-9999px;top:0;background:var(--text);color:var(--bg);padding:10px 14px;border-radius:0 0 10px 0;z-index:99}
+  .skip:focus{left:0}
+  @media (prefers-reduced-motion: reduce){ *{animation-duration:.01ms !important;transition-duration:.01ms !important;scroll-behavior:auto !important} }
+  footer{max-width:1120px;margin:0 auto;padding:0 16px 36px;color:var(--muted);font-size:13px;text-align:center}
+  /* ---------- Responsive ---------- */
+  @media (max-width: 900px){
+    .grid-2,.grid-3{grid-template-columns:1fr}
+    .hero-stats{grid-template-columns:repeat(2,1fr)}
+    .proc-head{display:none}
+    .proc-row{grid-template-columns:1fr 1fr;gap:8px;border:1px solid var(--border);border-radius:12px;padding:10px;background:var(--surface-2)}
+    .proc-row .proc-dot{display:none}
+    .proc-row .icon-btn{grid-column:2;justify-self:end}
+  }
+  @media (max-width: 560px){
+    main{padding:16px 12px 44px}
+    .card{padding:16px}
+    .hero{padding:20px 14px 0}
+    .hero-stats{grid-template-columns:1fr 1fr;gap:8px}
+    .topbar{align-items:flex-start}
+    .btn{width:100%}
+    .btn-row .btn{flex:1 1 100%}
+    .bar-row{grid-template-columns:84px 1fr 56px}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to the simulator</a>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<header class="hero">
+  <div class="hero-inner">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo">OS</div>
+        <div><h1>OS Simulator</h1><p>Process Scheduling &amp; Memory Management</p></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span class="pill"><span class="dot"></span> Localhost &middot; private by design</span>
+        <div class="color-picker" role="group" aria-label="Choose a colour">
+          <button class="color-dot" data-color="teal" style="background:linear-gradient(135deg,#0d9488,#06b6d4)" title="Teal" aria-label="Teal colour" onclick="setColor('teal')"></button>
+          <button class="color-dot" data-color="indigo" style="background:linear-gradient(135deg,#4f46e5,#7c3aed)" title="Indigo (original)" aria-label="Indigo colour" onclick="setColor('indigo')"></button>
+          <button class="color-dot" data-color="emerald" style="background:linear-gradient(135deg,#059669,#84cc16)" title="Emerald" aria-label="Emerald colour" onclick="setColor('emerald')"></button>
+          <button class="color-dot" data-color="sunset" style="background:linear-gradient(135deg,#ea580c,#f59e0b)" title="Sunset" aria-label="Sunset colour" onclick="setColor('sunset')"></button>
+          <button class="color-dot" data-color="rose" style="background:linear-gradient(135deg,#e11d48,#f472b6)" title="Rose" aria-label="Rose colour" onclick="setColor('rose')"></button>
+          <button class="color-dot" data-color="ocean" style="background:linear-gradient(135deg,#0369a1,#22d3ee)" title="Ocean" aria-label="Ocean colour" onclick="setColor('ocean')"></button>
+        </div>
+        <button class="theme-btn" id="themeBtn" onclick="toggleTheme()" aria-label="Toggle dark mode">Dark mode</button>
+      </div>
+    </div>
+    <div class="hero-copy">
+      <h2 id="greeting">Hey praker, let's see how an OS thinks.</h2>
+      <p>Think of processes as people waiting in line, and memory as a small desk that can only hold a few pages at a time. I'll walk you through who gets to run next, what stays on the desk, and why — in plain English, no jargon needed.</p>
+    </div>
+    <div class="hero-stats" id="heroStats">
+      <div class="hero-stat"><b>5</b><span>Scheduling algorithms</span></div>
+      <div class="hero-stat"><b>5</b><span>Page replacement policies</span></div>
+      <div class="hero-stat"><b>19</b><span>Automated tests passing</span></div>
+      <div class="hero-stat"><b>0</b><span>External dependencies</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="nav-wrap"><nav class="nav" aria-label="Sections">
+  <button class="active" data-tab="dashboard" onclick="showTab('dashboard')">Dashboard</button>
+  <button data-tab="scheduling" onclick="showTab('scheduling')">Scheduling</button>
+  <button data-tab="memory" onclick="showTab('memory')">Memory &amp; paging</button>
+  <button data-tab="combined" onclick="showTab('combined')">Combined run</button>
+</nav></div>
+
+<main id="main">
+  <!-- DASHBOARD -->
+  <section class="panel active" id="panel-dashboard">
+    <div class="card" style="margin-bottom:16px">
+      <div class="guide">
+        <div class="avatar">Hi</div>
+        <div class="bubble"><b>Not sure where to start? No worries — here's the whole idea in 3 steps.</b>
+          <div class="guide-steps">
+            <div class="guide-step"><div class="num">1</div><b>Meet the processes</b><span>Each one is a little job that arrives, waits, and needs CPU time.</span></div>
+            <div class="guide-step"><div class="num">2</div><b>Pick a fair way to choose</b><span>First-come-first-served? Shortest first? Take turns? You decide.</span></div>
+            <div class="guide-step"><div class="num">3</div><b>See what happened</b><span>I'll tell you the story — who waited longest, and why — in plain words.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="eyebrow">Quick start · no setup</div>
+        <h2>Try it in one click</h2>
+        <p class="sub">Four familiar processes, every way of choosing, every memory policy — compared for you, with the story behind the numbers.</p>
+        <div class="btn-row">
+          <button class="btn" onclick="runDemo()">Show me what happens</button>
+          <button class="btn ghost" onclick="showTab('scheduling')">Meet the processes →</button>
+        </div>
+        <div id="demoOut"></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow">Paging, in seconds</div>
+        <h2>Translate an address</h2>
+        <p class="sub">Logical address → page number + offset.</p>
+        <div class="row">
+          <div><label>Logical address</label><input id="addr" type="number" value="19986"></div>
+          <div><label>Page size</label><input id="pageSize" type="number" value="4096"></div>
+        </div>
+        <div class="btn-row"><button class="btn teal" onclick="runPaging()">Translate</button></div>
+        <div id="pagingOut" style="margin-top:12px"><p class="muted">Example: 19986 with a 4096-byte page is page 4, offset 3602.</p></div>
+        <h3>How to run locally</h3>
+        <p class="muted"><span class="kbd">python app.py</span> then open <span class="kbd">http://127.0.0.1:8000</span><br>Stop with <span class="kbd">Ctrl+C</span>. The CLI still works too: <span class="kbd">python main.py --demo</span></p>
+      </div>
+    </div>
+    <div class="grid grid-3" style="margin-top:16px">
+      <div class="card"><div class="eyebrow">Scheduling</div><h2>Who runs next?</h2><p class="sub">Waiting, turnaround and response time, Gantt chart and CPU utilisation for every algorithm.</p><button class="btn ghost" onclick="showTab('scheduling')">Open scheduling</button></div>
+      <div class="card"><div class="eyebrow">Memory</div><h2>What stays in RAM?</h2><p class="sub">Paging, page tables and FIFO / LRU / Optimal / LFU / Clock — with a step-by-step frame trace.</p><button class="btn ghost" onclick="showTab('memory')">Open memory</button></div>
+      <div class="card"><div class="eyebrow">Combined</div><h2>Both, together</h2><p class="sub">Schedule the processes, then run their page references through shared memory in that order. Watch Round Robin thrash.</p><button class="btn ghost" onclick="showTab('combined')">Open combined run</button></div>
+    </div>
+  </section>
+
+  <!-- SCHEDULING -->
+  <section class="panel" id="panel-scheduling">
+    <div class="card">
+      <div class="eyebrow">1 · Scheduling</div>
+      <h2>Meet your processes</h2>
+      <p class="sub">Each row is a job. <b>Arrival</b> is when it shows up, <b>burst</b> is how long it needs, and <b>priority</b> is how important it is — 1 is the most important. The page numbers are what it asks memory for later.</p>
+      <details><summary>What does “waiting time” actually mean?</summary><p>It's how long a job sat in the queue doing nothing, waiting for its turn. Shorter is kinder. Turnaround is the whole trip — from arriving to finishing. Response is how long until it first got a turn.</p></details>
+      <div class="proc-head"><span></span><span>Arrival</span><span>Burst</span><span>Priority</span><span>Page references</span><span></span></div>
+      <div id="procEditor"></div>
+      <div class="btn-row">
+        <button class="btn ghost" onclick="addProcess()">+ Add process</button>
+        <button class="btn ghost" onclick="loadDemo()">Reset to demo</button>
+      </div>
+      <div>
+        <label style="margin-top:14px">Try a story in one tap</label>
+        <div class="preset-row" role="group" aria-label="Scheduling presets">
+          <button class="preset" onclick="loadPreset('balanced',this)">Balanced demo</button>
+          <button class="preset" onclick="loadPreset('short-jobs',this)">Lots of short jobs</button>
+          <button class="preset" onclick="loadPreset('one-long-job',this)">One very long job</button>
+          <button class="preset" onclick="loadPreset('late-arrivals',this)">Jobs arriving late</button>
+        </div>
+        <p class="hint" id="presetNote">Balanced: the classic four jobs. The others show where each algorithm shines — or struggles.</p>
+      </div>
+      <div class="row" style="margin-top:16px">
+        <div><label>Algorithm</label>
+          <select id="schedAlgo"><option value="fcfs">FCFS — First Come First Served</option><option value="sjf">SJF — Shortest Job First</option><option value="srtf">SRTF — Shortest Remaining Time</option><option value="rr">Round Robin</option><option value="priority">Priority</option></select></div>
+        <div><label>Quantum (Round Robin) — <span class="slider-val" id="quantumVal">2</span></label><input id="quantum" type="range" value="2" min="1" max="8" step="1" oninput="document.getElementById('quantumVal').textContent=this.value" aria-label="Round Robin time quantum"></div>
+        <div><label>&nbsp;</label><button class="btn" onclick="runScheduling()">Show me what happens</button></div>
+      </div>
+      <p class="hint">Not sure which to pick? Try “Compare all” — I'll tell you which one was kindest to the jobs waiting in line.</p>
+      <div class="btn-row"><button class="btn teal" onclick="compareScheduling()">Compare all — which is fairest?</button></div>
+      <div id="schedOut"></div>
+    </div>
+  </section>
+
+  <!-- MEMORY -->
+  <section class="panel" id="panel-memory">
+    <div class="card">
+      <div class="eyebrow">2 · Memory &amp; paging</div>
+      <h2>What stays on the desk?</h2>
+      <p class="sub">Memory is a small desk — it can only hold a few pages at once. When a job asks for a page that isn't there, that's a <b>page fault</b>: the computer has to go fetch it from disk, which is slow. When it's already there, that's a <b>hit</b> — nice and fast.</p>
+      <details><summary>What does “page replacement” mean, in plain words?</summary><p>When the desk is full and a new page arrives, something has to leave. FIFO throws out the oldest page. LRU throws out the one you haven't touched for the longest. Optimal cheats — it peeks into the future. That's why Optimal always wins, but a real computer can't do it.</p></details>
+      <p class="sub" style="margin-top:10px">The classic example with 3 frames gives FIFO 15 faults, LRU 12, Optimal 9. Change the numbers and see why.</p>
+      <div class="row">
+        <div style="grid-column:span 2"><label>Reference string (comma separated)</label><input id="refs" value="7,0,1,2,0,3,0,4,2,3,0,3,2,1,2,0,1,7,0,1"></div>
+        <div><label>Frames — <span class="slider-val" id="framesVal">3</span></label><input id="frames" type="range" value="3" min="1" max="10" step="1" oninput="document.getElementById('framesVal').textContent=this.value" aria-label="Number of memory frames"></div>
+        <div><label>Algorithm</label><select id="replAlgo"><option value="all">Compare all</option><option value="fifo">FIFO</option><option value="lru">LRU</option><option value="optimal">Optimal</option><option value="lfu">LFU</option><option value="clock">Clock</option></select></div>
+      </div>
+      <div>
+        <label style="margin-top:14px">Try a story in one tap</label>
+        <div class="preset-row" role="group" aria-label="Memory presets">
+          <button class="preset" onclick="loadMemoryPreset('classic',this)">Classic textbook</button>
+          <button class="preset" onclick="loadMemoryPreset('loop',this)">A repeating loop</button>
+          <button class="preset" onclick="loadMemoryPreset('thrashing',this)">Thrashing — too many pages</button>
+          <button class="preset" onclick="loadMemoryPreset('sequential',this)">One thing after another</button>
+        </div>
+      </div>
+      <div class="btn-row"><button class="btn" onclick="runReplacement()">Show me the pages</button></div>
+      <div id="replPlayer"></div>
+      <div id="replOut"></div>
+    </div>
+  </section>
+
+  <!-- COMBINED -->
+  <section class="panel" id="panel-combined">
+    <div class="card">
+      <div class="eyebrow">3 · Combined run</div>
+      <h2>Now put it all together</h2>
+      <p class="sub">First we decide who runs, then each job asks memory for its pages while it runs. SJF with 4 frames gets some nice hits. Round Robin with 3 frames is a mess — everyone keeps pushing each other off the desk, so almost every ask is a fault. That's called <b>thrashing</b>, and it feels exactly as bad as it sounds.</p>
+      <div class="row">
+        <div><label>Algorithm</label><select id="combAlgo"><option value="sjf">SJF</option><option value="fcfs">FCFS</option><option value="srtf">SRTF</option><option value="rr">Round Robin</option><option value="priority">Priority</option></select></div>
+        <div><label>Replacement</label><select id="combRepl"><option value="lru">LRU</option><option value="fifo">FIFO</option><option value="clock">Clock</option><option value="lfu">LFU</option></select></div>
+        <div><label>Frames — <span class="slider-val" id="combFramesVal">4</span></label><input id="combFrames" type="range" value="4" min="1" max="10" step="1" oninput="document.getElementById('combFramesVal').textContent=this.value" aria-label="Combined run frames"></div>
+        <div><label>&nbsp;</label><button class="btn" onclick="runCombined()">Run combined</button></div>
+      </div>
+      <div id="combOut"></div>
+    </div>
+  </section>
+</main>
+<section style="max-width:1120px;margin:0 auto;padding:0 16px 22px">
+  <div class="card">
+    <div class="guide">
+      <div class="avatar">M</div>
+      <div class="bubble">
+        <b>Your OS guide is here.</b> <span class="muted">Stuck on a word, or wondering why something happened? Tap a question — I'll explain it like a friend would.</span>
+        <div class="chips">
+          <button class="chip" onclick="askHelper('fault')">What is a page fault?</button>
+          <button class="chip" onclick="askHelper('sjf')">Why is SJF usually fastest?</button>
+          <button class="chip" onclick="askHelper('thrashing')">What is thrashing?</button>
+          <button class="chip" onclick="askHelper('rr')">What does Round Robin feel like?</button>
+          <button class="chip" onclick="askHelper('lru')">Why does LRU work so well?</button>
+        </div>
+        <div id="helperOut" style="margin-top:12px"><p class="muted" style="margin:0">Go on, ask me anything above. There are no silly questions here.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+<footer>Process Scheduling + Memory Management Simulator · Runs entirely on localhost · Python standard library only · Made to be understood, not just used</footer>
+
+<script>
+const COLORS = {P1:'#4f46e5',P2:'#059669',P3:'#d97706',P4:'#dc2626',P5:'#7c3aed',P6:'#0891b2',P7:'#db2777',P8:'#65a30d'};
+let processes = [];
+let demoCache = null;
+let lastSched = null, lastRepl = null, lastCombined = null;
+let playTimer = null, replTimer = null;
+
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(el._t); el._t = setTimeout(()=>el.classList.remove('show'), 3200);
+}
+function markActive(btn){ if(!btn) return; btn.parentElement.querySelectorAll('.preset').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); }
+const PRESETS = {
+  'balanced': [{pid:'P1',arrival_time:0,burst_time:8,priority:2,page_references:[1,2,3,4,1,2,5,1,2,3,4,5]},{pid:'P2',arrival_time:1,burst_time:4,priority:1,page_references:[3,2,1,0,3,2,4,3,2,1,0,4]},{pid:'P3',arrival_time:2,burst_time:9,priority:3,page_references:[0,1,7,0,1,2,0,1,7,0,1]},{pid:'P4',arrival_time:3,burst_time:5,priority:2,page_references:[2,3,2,1,5,6,2,1,2,3,6,3]}],
+  'short-jobs': [{pid:'P1',arrival_time:0,burst_time:2,priority:2,page_references:[0,1,0,1]},{pid:'P2',arrival_time:0,burst_time:1,priority:1,page_references:[1,2]},{pid:'P3',arrival_time:1,burst_time:3,priority:3,page_references:[2,3,2]},{pid:'P4',arrival_time:2,burst_time:2,priority:2,page_references:[3,0,3]},{pid:'P5',arrival_time:3,burst_time:1,priority:1,page_references:[0]}],
+  'one-long-job': [{pid:'P1',arrival_time:0,burst_time:20,priority:2,page_references:[0,1,2,3,0,1]},{pid:'P2',arrival_time:1,burst_time:2,priority:1,page_references:[4,5]},{pid:'P3',arrival_time:2,burst_time:3,priority:3,page_references:[5,6,5]}],
+  'late-arrivals': [{pid:'P1',arrival_time:0,burst_time:4,priority:2,page_references:[0,1,0]},{pid:'P2',arrival_time:8,burst_time:4,priority:1,page_references:[1,2,1]},{pid:'P3',arrival_time:9,burst_time:5,priority:3,page_references:[2,3,2]}]
+};
+const PRESET_NOTES = {
+  'balanced': 'Balanced: the classic four jobs.',
+  'short-jobs': 'Lots of short jobs: watch SJF shine — it clears the quick ones first, so nobody waits long.',
+  'one-long-job': 'One very long job: FCFS makes everyone queue behind it. SJF and Round Robin are much kinder here.',
+  'late-arrivals': 'Jobs arriving late: the CPU sits idle at first, then gets busy. Notice the idle gap in the Gantt chart.'
+};
+function loadPreset(name, btn){
+  markActive(btn);
+  processes = JSON.parse(JSON.stringify(PRESETS[name]));
+  document.getElementById('presetNote').textContent = PRESET_NOTES[name];
+  renderProcs(); toast('Loaded: ' + (btn ? btn.textContent : name));
+}
+const MEMORY_PRESETS = {
+  'classic': '7,0,1,2,0,3,0,4,2,3,0,3,2,1,2,0,1,7,0,1',
+  'loop': '0,1,2,3,0,1,2,3,0,1,2,3,0,1,2,3',
+  'thrashing': '0,1,2,3,4,5,6,7,0,1,2,3,4,5,6,7',
+  'sequential': '0,1,2,3,4,5,6,7,8,9,10,11'
+};
+function loadMemoryPreset(name, btn){
+  markActive(btn);
+  document.getElementById('refs').value = MEMORY_PRESETS[name];
+  toast('Loaded: ' + (btn ? btn.textContent : name) + ' — tap “Show me the pages”.');
+}
+function saveHistory(kind, label){
+  try {
+    const h = JSON.parse(localStorage.getItem('os-sim-history') || '[]');
+    h.unshift({kind, label, when: new Date().toLocaleTimeString()});
+    localStorage.setItem('os-sim-history', JSON.stringify(h.slice(0,3)));
+  } catch(e) {}
+}
+function historyHtml(){
+  try {
+    const h = JSON.parse(localStorage.getItem('os-sim-history') || '[]');
+    if(!h.length) return '';
+    return '<div class="history" aria-label="Recent runs">' + h.map(x=>`<button type="button" title="${x.when}">${x.kind}: ${x.label}</button>`).join('') + '</div>';
+  } catch(e) { return ''; }
+}
+function copyResult(obj, label){
+  const text = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(()=>toast('Copied — ' + label)).catch(()=>toast('Could not copy on this browser'));
+  else toast('Copy is not available in this browser');
+}
+function downloadResult(obj, filename){
+  const blob = new Blob([JSON.stringify(obj, null, 2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 1000); toast('Downloaded ' + filename);
+}
+function stopPlayers(){ clearInterval(playTimer); clearInterval(replTimer); playTimer = null; replTimer = null; }
+function ganttPlayerHtml(r){
+  return `<div class="player" role="group" aria-label="Play the schedule step by step">
+    <button class="btn ghost" onclick="playGantt()">Play it step by step</button>
+    <span class="step-label" id="ganttStepLabel">Tap Play to watch time pass</span>
+  </div>`;
+}
+function playGantt(){
+  if(!lastSched) return; stopPlayers();
+  const segs = document.querySelectorAll('#schedOut .gantt-seg');
+  let i = 0; segs.forEach(s=>s.classList.add('dim'));
+  const label = document.getElementById('ganttStepLabel');
+  playTimer = setInterval(()=>{
+    if(i >= segs.length){ clearInterval(playTimer); segs.forEach(s=>s.classList.remove('dim','now')); if(label) label.textContent = 'Done — everyone finished by time ' + lastSched.total_time + '.'; return; }
+    segs.forEach(s=>s.classList.remove('now')); segs[i].classList.remove('dim'); segs[i].classList.add('now');
+    const seg = lastSched.gantt[i];
+    if(label) label.textContent = 'Time ' + seg.start + '–' + seg.end + ': ' + seg.pid + ' is running.';
+    i++;
+  }, 900);
+}
+function replPlayerHtml(r){
+  return `<div class="player" role="group" aria-label="Step through page replacement">
+    <button class="btn ghost" onclick="playRepl()">Play it step by step</button>
+    <input type="range" id="replSlider" min="0" max="${r.steps.length-1}" value="0" oninput="showReplStep(+this.value)" aria-label="Step through references">
+    <span class="step-label" id="replStepLabel">Step 1 of ${r.steps.length}</span>
+  </div><div id="replStepOut" style="margin-top:10px"></div>`;
+}
+function showReplStep(idx){
+  if(!lastRepl) return;
+  const s = lastRepl.steps[idx];
+  const out = document.getElementById('replStepOut'); if(!out) return;
+  out.innerHTML = `<div class="step"><b>${s.page}</b><span class="badge ${s.fault?'red':'green'}">${s.fault?'FAULT — had to fetch it':'HIT — already there'}</span>${framesHtml(s)}<span class="meta">${s.evicted!=null?'threw out '+s.evicted:''}</span></div>
+  <p class="hint">${s.fault ? 'This page was not on the desk, so the computer fetched it from disk.' : 'This page was already on the desk. Fast!'}</p>`;
+  const label = document.getElementById('replStepLabel'); if(label) label.textContent = 'Step ' + (idx+1) + ' of ' + lastRepl.steps.length;
+  const slider = document.getElementById('replSlider'); if(slider) slider.value = idx;
+}
+function playRepl(){
+  if(!lastRepl) return; stopPlayers(); let i = 0;
+  replTimer = setInterval(()=>{ if(i >= lastRepl.steps.length){ clearInterval(replTimer); return; } showReplStep(i); i++; }, 900);
+}
+
+function setColor(name){
+  document.documentElement.setAttribute('data-color', name);
+  localStorage.setItem('os-sim-color', name);
+  document.querySelectorAll('.color-dot').forEach(d=>d.classList.toggle('active', d.dataset.color===name));
+  toast('Colour changed to ' + name + ' — nice choice.');
+}
+(function restoreColor(){
+  const saved = localStorage.getItem('os-sim-color');
+  if(saved){ document.documentElement.setAttribute('data-color', saved); }
+  const current = document.documentElement.getAttribute('data-color') || 'teal';
+  document.querySelectorAll('.color-dot').forEach(d=>d.classList.toggle('active', d.dataset.color===current));
+})();
+function toggleTheme(){
+  const el = document.documentElement;
+  const next = el.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  el.setAttribute('data-theme', next);
+  localStorage.setItem('os-sim-theme', next);
+  document.getElementById('themeBtn').textContent = next === 'dark' ? 'Light mode' : 'Dark mode';
+}
+(function(){ const t = localStorage.getItem('os-sim-theme'); if(t){ document.documentElement.setAttribute('data-theme', t); document.getElementById('themeBtn').textContent = t==='dark' ? 'Light mode' : 'Dark mode'; } })();
+
+function showTab(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active', b.dataset.tab===name));
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+async function loadDemo(){
+  if(!demoCache) demoCache = await (await fetch('/api/demo')).json();
+  processes = JSON.parse(JSON.stringify(demoCache.processes));
+  renderProcs();
+}
+function renderProcs(){
+  document.getElementById('procEditor').innerHTML = processes.map((p,i)=>`
+    <div class="proc-row">
+      <span class="proc-dot" style="background:${COLORS[p.pid]||'#334155'}"></span>
+      <input type="number" aria-label="Arrival for ${p.pid}" value="${p.arrival_time}" onchange="processes[${i}].arrival_time=+this.value">
+      <input type="number" aria-label="Burst for ${p.pid}" value="${p.burst_time}" onchange="processes[${i}].burst_time=+this.value">
+      <input type="number" aria-label="Priority for ${p.pid}" value="${p.priority}" onchange="processes[${i}].priority=+this.value">
+      <input aria-label="Page references for ${p.pid}" value="${p.page_references.join(',')}" onchange="processes[${i}].page_references=this.value.split(',').map(x=>+x.trim()).filter(x=>!isNaN(x))">
+      <button class="icon-btn" aria-label="Remove ${p.pid}" onclick="processes.splice(${i},1);renderProcs()">×</button>
+    </div>`).join('') +
+    `<p class="muted" style="margin:4px 0 0">${processes.map(p=>`<span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${COLORS[p.pid]||'#334155'};margin-right:5px"></i>${p.pid}</span>`).join(' &nbsp; ')}</p>`;
+}
+function addProcess(){ const n=processes.length+1; processes.push({pid:'P'+n,arrival_time:0,burst_time:5,priority:2,page_references:[0,1,2]}); renderProcs(); }
+function ganttHtml(g, total){
+  const scale = Array.from({length: Math.min(total+1, 14)}, (_,i)=> Math.round(i*(total)/(Math.min(total,13)||1)));
+  return `<div class="gantt"><div class="gantt-bar">${g.map(s=>{
+    const w = total ? ((s.end-s.start)/total*100) : 0;
+    return `<div class="gantt-seg ${s.pid==='IDLE'?'idle':''}" style="width:${Math.max(w,5)}%;background:${s.pid==='IDLE'?'':COLORS[s.pid]||'#334155'}" title="${s.pid}: ${s.start}–${s.end}">${s.pid} · ${s.start}–${s.end}</div>`;
+  }).join('')}</div><div class="gantt-scale"><span>0</span><span>${Math.round(total/2)}</span><span>${total}</span></div></div>
+  <div class="legend">${[...new Set(g.map(s=>s.pid))].map(pid=>`<span><i style="background:${pid==='IDLE'?'#94a3b8':COLORS[pid]||'#334155'}"></i>${pid}</span>`).join('')}</div>`;
+}
+function humanSchedulingStory(r){
+  const longest = r.processes.reduce((m,p)=> p.waiting_time > m.waiting_time ? p : m, r.processes[0]);
+  const first = r.gantt.find(s=>s.pid!=='IDLE');
+  return `<div class="story"><div class="who">In plain English</div>
+  <p>Here's what really happened: <b>${first ? first.pid : 'nobody'}</b> went first, and everyone finished by time <b>${r.total_time}</b>.</p>
+  <p>On average, a job waited <b>${r.avg_waiting_time}</b> units in line, and took <b>${r.avg_turnaround_time}</b> units from arriving to finishing. The longest wait was <b>${longest.pid}</b>, at <b>${longest.waiting_time}</b> units — that's the one this way of choosing was least kind to.</p>
+  <p>The CPU was busy <b>${r.cpu_utilization}%</b> of the time, so almost no time was wasted sitting idle.</p></div>`;
+}
+function schedHtml(r, withPlayer=true){
+  return `<h3>${r.algorithm}</h3>${ganttHtml(r.gantt, r.total_time)}${humanSchedulingStory(r)}
+  <div class="table-wrap"><table><tr><th>PID</th><th>Arrival</th><th>Burst</th><th>Start</th><th>Finish</th><th>Waiting</th><th>Turnaround</th><th>Response</th></tr>
+  ${r.processes.map(p=>`<tr><td><b>${p.pid}</b></td><td>${p.arrival_time}</td><td>${p.burst_time}</td><td>${p.start_time}</td><td>${p.completion_time}</td><td>${p.waiting_time}</td><td>${p.turnaround_time}</td><td>${p.response_time}</td></tr>`).join('')}</table></div>
+  ${withPlayer ? `<div class="btn-row"><button class="btn ghost" onclick="copyResult(lastSched, 'scheduling result copied')">Copy result</button><button class="btn ghost" onclick="downloadResult(lastSched, 'scheduling-result.json')">Download JSON</button></div>` : ''}
+  ${withPlayer ? ganttPlayerHtml(r) : ''}
+  <div class="stats">
+    <div class="stat"><b>${r.avg_waiting_time}</b><span>Waiting, on average</span><small>time units</small></div>
+    <div class="stat"><b>${r.avg_turnaround_time}</b><span>Arrival to finish, on average</span><small>time units</small></div>
+    <div class="stat"><b>${r.avg_response_time}</b><span>Until first turn, on average</span><small>time units</small></div>
+    <div class="stat"><b>${r.cpu_utilization}%</b><span>CPU utilisation</span><small>${r.total_time} time units total</small></div>
+  </div>`;
+}
+async function post(path, body){
+  const res = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  const data = await res.json(); if(!res.ok) throw new Error(data.error || res.statusText); return data;
+}
+function setBusy(el, busy){ el.querySelectorAll('button').forEach(b=>b.disabled=busy); }
+async function runScheduling(){
+  const out = document.getElementById('schedOut'); out.innerHTML = '<div class="skeleton" style="height:120px"></div><p class="muted">Give me a second — I\'m lining everyone up…</p>';
+  try {
+    lastSched = await post('/api/scheduling', {processes, algorithm: document.getElementById('schedAlgo').value, quantum: +document.getElementById('quantum').value});
+    saveHistory('Scheduling', lastSched.algorithm + ' · avg wait ' + lastSched.avg_waiting_time);
+    out.innerHTML = schedHtml(lastSched) + historyHtml();
+    toast('Done — ' + lastSched.algorithm + ', average wait ' + lastSched.avg_waiting_time + '.');
+    out.scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  catch(e){ out.innerHTML = `<p class="error">Hmm, that did not work: ${e.message}. Check the numbers and try again — nothing is broken, I promise.</p>`; }
+}
+async function compareScheduling(){
+  const out = document.getElementById('schedOut'); out.innerHTML = '<p class="muted">Comparing them all for you — who was kindest to the waiting jobs?</p>';
+  try {
+    if(!demoCache) demoCache = await (await fetch('/api/demo')).json();
+    // Compare on the current edited processes by re-running each algorithm via the demo endpoint's logic is not available,
+    // so run each one through the API.
+    const algos = ['fcfs','sjf','srtf','rr','priority'];
+    const results = [];
+    for(const a of algos) results.push(await post('/api/scheduling', {processes, algorithm:a, quantum:+document.getElementById('quantum').value}));
+    const best = results.reduce((m,r)=> r.avg_waiting_time < m.avg_waiting_time ? r : m, results[0]);
+    out.innerHTML = `<h3>Comparison — lowest average waiting wins</h3>` +
+      results.map(r=>`<div class="bar-row"><span>${r.algorithm.replace(' (non-preemptive)','').replace(' (preemptive SJF)','')}</span><div class="bar-track"><div class="bar-fill ${r===best?'best':''}" style="width:${Math.max(6, r.avg_waiting_time/ Math.max(...results.map(x=>x.avg_waiting_time)) *100)}%"></div></div><b>${r.avg_waiting_time}</b></div>`).join('') +
+      `<div class="callout green"><b>Best: ${best.algorithm}</b> — average waiting ${best.avg_waiting_time}, average turnaround ${best.avg_turnaround_time}.</div>` +
+      results.map(r=>schedHtml(r,false)).join('<hr style="border:0;border-top:1px solid var(--border);margin:20px 0">');
+  } catch(e){ out.innerHTML = `<p class="error">${e.message}</p>`; }
+}
+function framesHtml(step){
+  return `<div class="frames">${step.frames.map(f=>`<div class="frame ${f===-1?'empty': step.fault?'fault':'hit'}">${f===-1?'–':f}</div>`).join('')}</div>`;
+}
+function humanReplacementStory(r){
+  const total = r.reference_string.length;
+  return `<div class="story"><div class="who">In plain English</div>
+  <p>Out of <b>${total}</b> page requests, <b>${r.faults}</b> weren't on the desk, so the computer had to go fetch them from disk — that's slow. <b>${r.hits}</b> were already there, which felt instant.</p>
+  <p>${r.fault_ratio >= 0.6 ? 'That\'s a lot of fetching. A bigger desk (more frames) would help a lot here.' : r.fault_ratio >= 0.4 ? 'A fair mix — some fetching, some instant hits.' : 'Mostly hits. This policy is doing a lovely job of keeping the right pages close by.'}</p></div>`;
+}
+function replHtml(r, showTrace=true){
+  const best = r.faults <= 9;
+  return `<h3>${r.algorithm} <span class="badge ${r.faults<=9?'green':r.faults<=12?'amber':'red'}">${r.faults} faults · ${r.hits} hits</span></h3>${humanReplacementStory(r)}
+  <div class="bar-row"><span>Fault rate</span><div class="bar-track"><div class="bar-fill ${best?'best':''}" style="width:${Math.round(r.fault_ratio*100)}%"></div></div><b>${Math.round(r.fault_ratio*100)}%</b></div>
+  ${showTrace ? `<div class="steps">${r.steps.slice(0,12).map(s=>`<div class="step"><b>${s.page}</b><span class="badge ${s.fault?'red':'green'}">${s.fault?'FAULT':'HIT'}</span>${framesHtml(s)}<span class="meta">${s.evicted!=null?'evicted '+s.evicted:''}</span></div>`).join('')}</div>
+  ${r.steps.length>12?`<p class="muted">Showing first 12 of ${r.steps.length} references.</p>`:''}` : ''}`;
+}
+async function runReplacement(){
+  const out = document.getElementById('replOut'); out.innerHTML = '<p class="muted">Give me a second — I\'m working it out…</p>';
+  const refs = document.getElementById('refs').value.split(',').map(x=>+x.trim()).filter(x=>!isNaN(x));
+  try {
+    const data = await post('/api/replacement', {reference_string: refs, frames: +document.getElementById('frames').value, algorithm: document.getElementById('replAlgo').value});
+    if(Array.isArray(data)){
+      lastRepl = data.reduce((m,r)=> r.faults < m.faults ? r : m, data[0]);
+      const best = lastRepl;
+      out.innerHTML = `<h3>Comparison — fewest faults wins</h3>` +
+        data.map(r=>`<div class="bar-row"><span>${r.algorithm}</span><div class="bar-track"><div class="bar-fill ${r===best?'best':''}" style="width:${Math.max(6, r.faults/Math.max(...data.map(x=>x.faults))*100)}%"></div></div><b>${r.faults} faults</b></div>`).join('') +
+        `<div class="callout green"><b>Best: ${best.algorithm}</b> — ${best.faults} faults, ${best.hits} hits out of ${best.reference_string.length} references.</div>` +
+        data.map(r=>replHtml(r, false)).join('');
+    } else { lastRepl = data; out.innerHTML = replHtml(data, true) + replPlayerHtml(data) + '<div class="btn-row"><button class="btn ghost" onclick="copyResult(lastRepl, \'replacement result copied\')">Copy result</button><button class="btn ghost" onclick="downloadResult(lastRepl, \'replacement-result.json\')">Download JSON</button></div>'; showReplStep(0); }
+    if(Array.isArray(data)){ out.innerHTML += replPlayerHtml(lastRepl) + '<div class="btn-row"><button class="btn ghost" onclick="copyResult(lastRepl, \'best replacement result copied\')">Copy best result</button></div>'; showReplStep(0); }
+    saveHistory('Memory', (Array.isArray(data) ? 'compare all' : data.algorithm) + ' · ' + (Array.isArray(data) ? lastRepl.faults + ' faults (best)' : data.faults + ' faults'));
+    toast(Array.isArray(data) ? 'Compared — best was ' + lastRepl.algorithm + ' with ' + lastRepl.faults + ' faults.' : 'Done — ' + data.algorithm + ' had ' + data.faults + ' faults.');
+  } catch(e){ out.innerHTML = `<p class="error">Hmm, that did not work: ${e.message}. Check the reference string and try again.</p>`; }
+}
+async function runPaging(){
+  const out = document.getElementById('pagingOut');
+  const a = document.getElementById('addr').value, s = document.getElementById('pageSize').value;
+  try {
+    const d = await (await fetch(`/api/paging?address=${a}&page_size=${s}`)).json();
+    if(d.error) throw new Error(d.error);
+    out.innerHTML = `<div class="stats"><div class="stat"><b>Page ${d.page}</b><span>Page number</span></div><div class="stat"><b>${d.offset}</b><span>Offset</span></div><div class="stat"><b>${d.physical_if_frame_3}</b><span>Physical, if in frame 3</span></div></div>
+    <p class="muted" style="margin-top:10px">Logical <b>${d.address}</b> ÷ ${d.page_size} = page <b>${d.page}</b> remainder <b>${d.offset}</b>. Physical address = frame × page size + offset.</p>`;
+  } catch(e){ out.innerHTML = `<p class="error">${e.message}</p>`; }
+}
+async function runCombined(){
+  const out = document.getElementById('combOut'); out.innerHTML = '<p class="muted">Give me a second — I\'m working it out…</p>';
+  try {
+    const r = await post('/api/combined', {processes, algorithm: document.getElementById('combAlgo').value, replacement: document.getElementById('combRepl').value, frames: +document.getElementById('combFrames').value, quantum: 2});
+    lastCombined = r;
+    const total = r.total_faults + r.total_hits, rate = total ? Math.round(r.total_faults/total*100) : 0;
+    out.innerHTML = schedHtml(r.schedule) +
+      `<h3>Memory: ${r.num_frames} frames · ${r.replacement.toUpperCase()}</h3>
+       <div class="stats"><div class="stat"><b>${r.total_faults}</b><span>Page faults</span></div><div class="stat"><b>${r.total_hits}</b><span>Hits</span></div><div class="stat"><b>${rate}%</b><span>Fault rate</span></div></div>
+       <div class="table-wrap"><table><tr><th>PID</th><th>Faults</th><th>Hits</th></tr>
+       ${Object.keys(r.per_process_faults).map(pid=>`<tr><td><b>${pid}</b></td><td>${r.per_process_faults[pid]}</td><td>${r.per_process_hits[pid]}</td></tr>`).join('')}</table></div>` +
+      (rate >= 90 ? `<div class="callout amber"><b>Thrashing.</b> The working sets don't fit in ${r.num_frames} frames, so almost every access faults. Try more frames, or SJF instead of Round Robin.</div>` :
+       `<div class="callout green">Fault rate ${rate}% — some pages are being reused from memory instead of reloaded.</div>`)
+      + `<div class="btn-row"><button class="btn ghost" onclick="copyResult(lastCombined, 'combined result copied')">Copy result</button><button class="btn ghost" onclick="downloadResult(lastCombined, 'combined-result.json')">Download JSON</button></div>`;
+    saveHistory('Combined', r.schedule.algorithm + ' + ' + r.replacement.toUpperCase() + ' · ' + r.total_faults + ' faults');
+    toast('Combined run done — ' + r.total_faults + ' faults, ' + r.total_hits + ' hits.');
+  } catch(e){ out.innerHTML = `<p class="error">Hmm, that did not work: ${e.message}. Check the settings and try again.</p>`; }
+}
+const HELPER = {
+  fault: "A page fault is just a polite way of saying “that page isn't here right now.” The page lives on disk, the desk (memory) is full or it was never loaded, so the computer pauses, fetches it, and puts it on the desk. Too many faults and everything feels slow — that's why we try to keep the useful pages close.",
+  sjf: "SJF — Shortest Job First — is usually fastest on average because it gets the quick jobs out of the way first. Imagine a queue at a shop: if the person with one item goes first, everyone behind them waits less. The trade-off? A very long job can wait a long time if short jobs keep arriving.",
+  thrashing: "Thrashing is when the computer spends more time swapping pages in and out than doing real work. It happens when the jobs' working sets don't fit in memory, and Round Robin keeps interrupting them before they can settle. More frames, or letting a job finish before switching, usually calms it down.",
+  rr: "Round Robin feels fair — everyone gets a short turn, again and again, like sharing a toy. Nobody waits forever to start, which is lovely for interactive things. But every switch has a cost, and if the turns are too short, jobs keep losing their pages from memory.",
+  lru: "LRU works well because of a very human habit: if you just used something, you'll probably use it again soon. And if you haven't touched something in ages, you probably won't miss it. So LRU keeps the recently-used pages and lets go of the forgotten ones. It's simple, and it matches how real programs behave."
+};
+function askHelper(topic){
+  document.getElementById('helperOut').innerHTML = `<div class="story" style="margin-top:0"><div class="who">Your OS guide says</div><p>${HELPER[topic] || 'Good question - try one of the buttons above and I will explain it in plain words.'}</p></div>`;
+}
+(function greet(){
+  const h = new Date().getHours();
+  const when = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+  const el = document.getElementById('greeting');
+  if(el) el.textContent = `${when}, praker — let's see how an OS thinks.`;
+})();
+async function runDemo(){
+  const out = document.getElementById('demoOut'); out.innerHTML = '<p class="muted">Give me a second — I\'m lining everyone up and checking every page…</p>';
+  try {
+    if(!demoCache) demoCache = await (await fetch('/api/demo')).json();
+    const s = demoCache.scheduling, bestS = s.reduce((m,r)=> r.avg_waiting_time < m.avg_waiting_time ? r : m, s[0]);
+    const r = demoCache.replacement, bestR = r.reduce((m,x)=> x.faults < m.faults ? x : m, r[0]);
+    out.innerHTML = `<h3>Demo results</h3>
+      <div class="stats"><div class="stat"><b>${bestS.avg_waiting_time}</b><span>Best avg waiting</span><small>${bestS.algorithm}</small></div>
+      <div class="stat"><b>${bestR.faults}</b><span>Best page faults</span><small>${bestR.algorithm} · 3 frames</small></div></div>
+      ${s.map(r=>`<div class="bar-row"><span>${r.algorithm.replace(' (non-preemptive)','')}</span><div class="bar-track"><div class="bar-fill ${r===bestS?'best':''}" style="width:${Math.max(6, r.avg_waiting_time/Math.max(...s.map(x=>x.avg_waiting_time))*100)}%"></div></div><b>${r.avg_waiting_time}</b></div>`).join('')}
+      <div class="btn-row"><button class="btn ghost" onclick="showTab('scheduling')">See scheduling details →</button><button class="btn ghost" onclick="showTab('memory')">See memory details →</button></div>`;
+  } catch(e){ out.innerHTML = `<p class="error">${e.message}</p>`; }
+}
+loadDemo();
+</script>
+</body>
+</html>
